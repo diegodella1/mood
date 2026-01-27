@@ -1,0 +1,614 @@
+@import "tailwindcss";
+
+/* ============================================
+   GLOBAL PULSE - COSMIC EMOTIONAL DESIGN SYSTEM
+   ============================================ */
+
+/* Color Palette - Cosmic Emotional */
+:root {
+  /* Base colors */
+  --color-void: #030308;
+  --color-space: #050510;
+  --color-nebula: #0a0a1a;
+  --color-cosmic-dark: #0f0f24;
+  --color-cosmic-mid: #161633;
+
+  /* Text colors */
+  --color-text-primary: #f0f0f5;
+  --color-text-secondary: #a0a0b8;
+  --color-text-muted: #606080;
+
+  /* Accent colors - Aurora inspired */
+  --color-aurora-cyan: #06b6d4;
+  --color-aurora-teal: #14b8a6;
+  --color-aurora-blue: #3b82f6;
+  --color-aurora-violet: #8b5cf6;
+  --color-aurora-pink: #ec4899;
+  --color-aurora-amber: #f59e0b;
+
+  /* Glow colors */
+  --glow-cyan: rgba(6, 182, 212, 0.5);
+  --glow-teal: rgba(20, 184, 166, 0.4);
+  --glow-violet: rgba(139, 92, 246, 0.4);
+  --glow-pink: rgba(236, 72, 153, 0.4);
+
+  /* Surface colors */
+  --surface-glass: rgba(15, 15, 36, 0.7);
+  --surface-glass-light: rgba(22, 22, 51, 0.5);
+  --surface-border: rgba(100, 100, 150, 0.2);
+  --surface-border-glow: rgba(6, 182, 212, 0.3);
+
+  /* Semantic */
+  --background: var(--color-space);
+  --foreground: var(--color-text-primary);
+}
+
+/* Tailwind theme integration */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+body {
+  background: var(--color-space);
+  color: var(--foreground);
+  font-family: var(--font-body), system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Cosmic Background - Fixed aurora effect */
+.cosmic-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -20%, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(139, 92, 246, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 50% 50%, rgba(20, 184, 166, 0.05) 0%, transparent 50%),
+    var(--color-space);
+  pointer-events: none;
+}
+
+/* Noise texture overlay */
+.cosmic-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+.font-display {
+  font-family: var(--font-display), system-ui, sans-serif;
+}
+
+.font-body {
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+.font-mono {
+  font-family: var(--font-mono), monospace;
+}
+
+/* Display headings with gradient */
+.text-gradient-aurora {
+  background: linear-gradient(135deg, var(--color-aurora-cyan) 0%, var(--color-aurora-teal) 50%, var(--color-aurora-violet) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.text-gradient-warm {
+  background: linear-gradient(135deg, var(--color-aurora-amber) 0%, var(--color-aurora-pink) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ============================================
+   GLASS MORPHISM COMPONENTS
+   ============================================ */
+
+.glass-card {
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--surface-border);
+  border-radius: 1.5rem;
+}
+
+.glass-card-glow {
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--surface-border-glow);
+  border-radius: 1.5rem;
+  box-shadow:
+    0 0 30px -10px var(--glow-cyan),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-card-subtle {
+  background: var(--surface-glass-light);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--surface-border);
+  border-radius: 1rem;
+}
+
+/* ============================================
+   GLOW EFFECTS
+   ============================================ */
+
+.glow-cyan {
+  box-shadow: 0 0 40px -10px var(--glow-cyan);
+}
+
+.glow-violet {
+  box-shadow: 0 0 40px -10px var(--glow-violet);
+}
+
+.glow-pink {
+  box-shadow: 0 0 40px -10px var(--glow-pink);
+}
+
+.glow-text-cyan {
+  text-shadow: 0 0 30px var(--glow-cyan);
+}
+
+/* Button glow on hover */
+.btn-glow {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.btn-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--color-aurora-cyan), var(--color-aurora-violet));
+  opacity: 0;
+  z-index: -1;
+  filter: blur(15px);
+  transition: opacity 0.3s ease;
+}
+
+.btn-glow:hover::before {
+  opacity: 0.6;
+}
+
+/* ============================================
+   AURORA GRADIENTS
+   ============================================ */
+
+.aurora-gradient {
+  background: linear-gradient(135deg,
+    var(--color-aurora-cyan) 0%,
+    var(--color-aurora-teal) 25%,
+    var(--color-aurora-blue) 50%,
+    var(--color-aurora-violet) 75%,
+    var(--color-aurora-pink) 100%
+  );
+}
+
+.aurora-gradient-subtle {
+  background: linear-gradient(135deg,
+    rgba(6, 182, 212, 0.2) 0%,
+    rgba(20, 184, 166, 0.15) 50%,
+    rgba(139, 92, 246, 0.2) 100%
+  );
+}
+
+.aurora-border {
+  position: relative;
+}
+
+.aurora-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--color-aurora-cyan), var(--color-aurora-violet));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* ============================================
+   PROGRESS BARS
+   ============================================ */
+
+.progress-bar-cosmic {
+  height: 8px;
+  background: var(--color-cosmic-dark);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-cosmic .fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--color-aurora-cyan), var(--color-aurora-teal));
+  box-shadow: 0 0 20px var(--glow-cyan);
+}
+
+.progress-bar-cosmic .fill-top {
+  background: linear-gradient(90deg, var(--color-aurora-cyan), var(--color-aurora-violet), var(--color-aurora-pink));
+  box-shadow: 0 0 25px var(--glow-violet);
+}
+
+/* ============================================
+   INTERACTIVE ELEMENTS
+   ============================================ */
+
+/* Emoji button base */
+.emoji-btn {
+  background: var(--surface-glass);
+  border: 1px solid var(--surface-border);
+  border-radius: 1.25rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.emoji-btn:hover {
+  background: var(--surface-glass-light);
+  border-color: var(--surface-border-glow);
+  transform: translateY(-2px);
+}
+
+.emoji-btn.selected {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(139, 92, 246, 0.3));
+  border-color: var(--color-aurora-cyan);
+  box-shadow:
+    0 0 30px -5px var(--glow-cyan),
+    0 0 60px -10px var(--glow-violet);
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Pulse glow animation */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px -5px var(--glow-cyan);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 40px -5px var(--glow-cyan);
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-cosmic-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--color-aurora-cyan), var(--color-aurora-violet));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--color-aurora-teal), var(--color-aurora-pink));
+}
+
+/* ============================================
+   SAFE AREAS (PWA)
+   ============================================ */
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ============================================
+   SELECTION
+   ============================================ */
+
+::selection {
+  background: rgba(6, 182, 212, 0.3);
+  color: var(--color-text-primary);
+}
+
+/* ============================================
+   FOCUS STATES
+   ============================================ */
+
+:focus-visible {
+  outline: 2px solid var(--color-aurora-cyan);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.cosmic-divider {
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    var(--surface-border-glow) 20%,
+    var(--surface-border-glow) 80%,
+    transparent
+  );
+}
+
+/* ============================================
+   MAPBOX OVERRIDES
+   ============================================ */
+
+.mapboxgl-popup-content {
+  background: var(--surface-glass) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--surface-border-glow) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 0 30px -10px var(--glow-cyan) !important;
+  padding: 0 !important;
+  color: var(--color-text-primary) !important;
+}
+
+.mapboxgl-popup-tip {
+  border-top-color: var(--surface-glass) !important;
+}
+
+.mapboxgl-popup-close-button {
+  color: var(--color-text-muted) !important;
+  font-size: 18px !important;
+  padding: 4px 8px !important;
+}
+
+.mapboxgl-popup-close-button:hover {
+  color: var(--color-text-primary) !important;
+  background: transparent !important;
+}
+
+.mapboxgl-ctrl-group {
+  background: var(--surface-glass) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: 0.75rem !important;
+  overflow: hidden;
+}
+
+.mapboxgl-ctrl-group button {
+  background: transparent !important;
+  border: none !important;
+}
+
+.mapboxgl-ctrl-group button:hover {
+  background: var(--surface-glass-light) !important;
+}
+
+.mapboxgl-ctrl-group button + button {
+  border-top: 1px solid var(--surface-border) !important;
+}
+
+.mapboxgl-ctrl-icon {
+  filter: invert(1) !important;
+}
+
+/* ============================================
+   AURA SYSTEM - Visual status indicators
+   ============================================ */
+
+/* Fire Aura (7+ days) */
+.aura-fire {
+  position: relative;
+  --aura-color: rgba(251, 146, 60, 0.4);
+}
+
+.aura-fire::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.3), rgba(239, 68, 68, 0.2));
+  z-index: -1;
+  filter: blur(8px);
+  animation: aura-pulse-fire 2s ease-in-out infinite;
+}
+
+@keyframes aura-pulse-fire {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.02); }
+}
+
+/* Lightning Aura (30+ days) */
+.aura-lightning {
+  position: relative;
+  --aura-color: rgba(250, 204, 21, 0.4);
+}
+
+.aura-lightning::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.35), rgba(251, 146, 60, 0.25));
+  z-index: -1;
+  filter: blur(10px);
+  animation: aura-pulse-lightning 1.5s ease-in-out infinite;
+}
+
+@keyframes aura-pulse-lightning {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  25% { opacity: 0.9; transform: scale(1.03); }
+  50% { opacity: 0.6; transform: scale(1.01); }
+  75% { opacity: 1; transform: scale(1.04); }
+}
+
+/* Diamond Aura (100+ days - LEGENDARY) */
+.aura-diamond {
+  position: relative;
+  --aura-color: rgba(147, 197, 253, 0.4);
+}
+
+.aura-diamond::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(147, 197, 253, 0.4),
+    rgba(196, 181, 253, 0.3),
+    rgba(147, 197, 253, 0.4),
+    rgba(253, 186, 116, 0.2)
+  );
+  background-size: 300% 300%;
+  z-index: -1;
+  filter: blur(12px);
+  animation: aura-shimmer-diamond 4s ease-in-out infinite;
+}
+
+@keyframes aura-shimmer-diamond {
+  0%, 100% {
+    opacity: 0.7;
+    background-position: 0% 50%;
+  }
+  50% {
+    opacity: 1;
+    background-position: 100% 50%;
+  }
+}
+
+/* Aura glow effect for numbers */
+.aura-glow {
+  position: relative;
+}
+
+.aura-fire .aura-glow {
+  text-shadow: 0 0 20px rgba(251, 146, 60, 0.6);
+}
+
+.aura-lightning .aura-glow {
+  text-shadow: 0 0 25px rgba(250, 204, 21, 0.7);
+}
+
+.aura-diamond .aura-glow {
+  text-shadow:
+    0 0 20px rgba(147, 197, 253, 0.8),
+    0 0 40px rgba(196, 181, 253, 0.4);
+}
+
+/* ============================================
+   STREAK AT RISK WARNING
+   ============================================ */
+
+@keyframes streak-warning {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 0 20px -5px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    border-color: rgba(239, 68, 68, 0.8);
+    box-shadow: 0 0 30px -5px rgba(239, 68, 68, 0.6);
+  }
+}
+
+.streak-at-risk {
+  animation: streak-warning 1.5s ease-in-out infinite;
+}
+
+/* ============================================
+   CELEBRATION EFFECTS
+   ============================================ */
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  animation: confetti-fall 3s linear forwards;
+}
+
+@keyframes milestone-pop {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.milestone-celebration {
+  animation: milestone-pop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* Surface elevated for progress bars */
+.surface-elevated {
+  background: var(--surface-glass);
+}
+
+:root {
+  --surface-elevated: rgba(22, 22, 51, 0.8);
+}
+
+/* ============================================
+   TOUR SYSTEM
+   ============================================ */
+
+.tour-highlight {
+  position: relative;
+  z-index: 101 !important;
+  box-shadow:
+    0 0 0 4px var(--color-aurora-cyan),
+    0 0 30px var(--glow-cyan),
+    0 0 60px var(--glow-cyan) !important;
+  border-radius: 1rem;
+  animation: tour-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tour-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 4px var(--color-aurora-cyan),
+      0 0 30px var(--glow-cyan),
+      0 0 60px var(--glow-cyan);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px var(--color-aurora-violet),
+      0 0 40px var(--glow-violet),
+      0 0 80px var(--glow-violet);
+  }
+}
