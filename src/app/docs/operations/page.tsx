@@ -9,12 +9,12 @@ const springSmooth = { type: 'spring' as const, damping: 25, stiffness: 200 };
 type SectionId = 'arch' | 'database' | 'api' | 'cron' | 'push' | 'monitor' | 'troubleshoot' | 'env' | 'deploy';
 
 const sections: { id: SectionId; title: string; icon: string }[] = [
-  { id: 'arch', title: 'Arquitectura', icon: '🏗️' },
-  { id: 'database', title: 'Base de Datos', icon: '🗄️' },
+  { id: 'arch', title: 'Architecture', icon: '🏗️' },
+  { id: 'database', title: 'Database', icon: '🗄️' },
   { id: 'api', title: 'APIs', icon: '🔌' },
   { id: 'cron', title: 'Cron Jobs', icon: '⏰' },
   { id: 'push', title: 'Push Notif', icon: '🔔' },
-  { id: 'monitor', title: 'Monitoreo', icon: '📊' },
+  { id: 'monitor', title: 'Monitoring', icon: '📊' },
   { id: 'troubleshoot', title: 'Troubleshoot', icon: '🔧' },
   { id: 'env', title: 'Variables', icon: '🔐' },
   { id: 'deploy', title: 'Deploy', icon: '🚀' },
@@ -35,10 +35,10 @@ export default function OperationsPage() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            <span className="text-sm">Volver</span>
+            <span className="text-sm">Back</span>
           </Link>
           <h1 className="font-mono text-lg font-bold text-[#c9d1d9]">
-            📋 Manual de Operaciones
+            📋 Operations Manual
           </h1>
           <div className="w-16" />
         </div>
@@ -166,11 +166,11 @@ function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
 function ArchSection() {
   return (
     <div>
-      <SectionTitle>🏗️ Arquitectura General</SectionTitle>
+      <SectionTitle>🏗️ General Architecture</SectionTitle>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Stack Tecnológico</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Tech Stack</h3>
       <Table
-        headers={['Componente', 'Tecnología']}
+        headers={['Component', 'Technology']}
         rows={[
           ['Frontend', 'Next.js 14, React 18, Framer Motion'],
           ['Backend', 'Next.js API Routes'],
@@ -180,7 +180,7 @@ function ArchSection() {
         ]}
       />
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Estructura de Archivos</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">File Structure</h3>
       <CodeBlock title="Estructura">{`src/
 ├── app/
 │   ├── api/              # API endpoints
@@ -205,41 +205,41 @@ function ArchSection() {
 function DatabaseSection() {
   return (
     <div>
-      <SectionTitle>🗄️ Base de Datos</SectionTitle>
+      <SectionTitle>🗄️ Database</SectionTitle>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Tablas Principales</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Main Tables</h3>
       <Table
-        headers={['Tabla', 'Propósito']}
+        headers={['Table', 'Purpose']}
         rows={[
-          ['users', 'Usuarios, streaks, auras, shields'],
-          ['pulses', 'Registro de cada pulse'],
-          ['follows', 'Relaciones de seguimiento'],
-          ['friend_streaks', 'Streaks compartidos'],
-          ['active_sessions', 'Usuarios activos (live counter)'],
-          ['lucky_drops', 'Rewards pendientes'],
-          ['secret_achievements', 'Achievements ocultos'],
-          ['friend_activity', 'Feed de actividad'],
-          ['referrals', 'Sistema de referidos'],
+          ['users', 'Users, streaks, auras, shields'],
+          ['pulses', 'Record of each pulse'],
+          ['follows', 'Follow relationships'],
+          ['friend_streaks', 'Shared streaks'],
+          ['active_sessions', 'Active users (live counter)'],
+          ['lucky_drops', 'Pending rewards'],
+          ['secret_achievements', 'Hidden achievements'],
+          ['friend_activity', 'Activity feed'],
+          ['referrals', 'Referral system'],
         ]}
       />
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Migraciones</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Migrations</h3>
       <CodeBlock title="supabase/migrations/">{`001_initial_schema.sql
 006_atomic_functions.sql
 009_security_performance.sql
 010_viral_features.sql
 011_social_features.sql`}</CodeBlock>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Funciones Críticas</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Critical Functions</h3>
       <Table
-        headers={['Función', 'Uso']}
+        headers={['Function', 'Usage']}
         rows={[
-          ['submit_pulse_atomic()', 'Submit pulse + streak atómico'],
-          ['follow_user()', 'Follow + crear friend streak'],
-          ['update_friend_streaks()', 'Actualizar streaks compartidos'],
-          ['roll_lucky_drop()', '5% chance de reward'],
-          ['check_secret_achievements()', 'Verificar achievements'],
-          ['get_live_pulse_count()', 'Contador usuarios activos'],
+          ['submit_pulse_atomic()', 'Submit pulse + atomic streak'],
+          ['follow_user()', 'Follow + create friend streak'],
+          ['update_friend_streaks()', 'Update shared streaks'],
+          ['roll_lucky_drop()', '5% chance of reward'],
+          ['check_secret_achievements()', 'Check achievements'],
+          ['get_live_pulse_count()', 'Active users counter'],
         ]}
       />
     </div>
@@ -251,14 +251,14 @@ function ApiSection() {
     <div>
       <SectionTitle>🔌 APIs</SectionTitle>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Endpoints Principales</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Main Endpoints</h3>
 
       <div className="space-y-4">
         <div className="p-4 bg-[#161b22] rounded-lg border border-[#30363d]">
           <code className="text-[#7ee787]">POST</code>
           <code className="text-[#c9d1d9] ml-2">/api/pulse</code>
           <p className="text-sm text-[#8b949e] mt-2">
-            Submit mood. Retorna streak, lucky drop, achievements, contexto.
+            Submit mood. Returns streak, lucky drop, achievements, context.
           </p>
         </div>
 
@@ -266,7 +266,7 @@ function ApiSection() {
           <code className="text-[#7ee787]">GET/POST/DELETE</code>
           <code className="text-[#c9d1d9] ml-2">/api/friends</code>
           <p className="text-sm text-[#8b949e] mt-2">
-            GET: listar followers/following. POST: follow. DELETE: unfollow.
+            GET: list followers/following. POST: follow. DELETE: unfollow.
           </p>
         </div>
 
@@ -274,7 +274,7 @@ function ApiSection() {
           <code className="text-[#7ee787]">GET</code>
           <code className="text-[#c9d1d9] ml-2">/api/friends/feed</code>
           <p className="text-sm text-[#8b949e] mt-2">
-            Feed de actividad de amigos (últimas 24h).
+            Friends activity feed (last 24h).
           </p>
         </div>
 
@@ -282,7 +282,7 @@ function ApiSection() {
           <code className="text-[#7ee787]">GET/POST</code>
           <code className="text-[#c9d1d9] ml-2">/api/live</code>
           <p className="text-sm text-[#8b949e] mt-2">
-            GET: contador live. POST: heartbeat de sesión.
+            GET: live counter. POST: session heartbeat.
           </p>
         </div>
 
@@ -290,18 +290,18 @@ function ApiSection() {
           <code className="text-[#7ee787]">GET/POST</code>
           <code className="text-[#c9d1d9] ml-2">/api/drops</code>
           <p className="text-sm text-[#8b949e] mt-2">
-            GET: drops sin reclamar. POST: claim drop.
+            GET: unclaimed drops. POST: claim drop.
           </p>
         </div>
       </div>
 
       <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Rate Limiting</h3>
       <Table
-        headers={['Endpoint', 'Límite']}
+        headers={['Endpoint', 'Limit']}
         rows={[
-          ['pulse', '10 req/minuto'],
-          ['recovery', '5 req/hora'],
-          ['reactions', '30 req/minuto'],
+          ['pulse', '10 req/minute'],
+          ['recovery', '5 req/hour'],
+          ['reactions', '30 req/minute'],
         ]}
       />
     </div>
@@ -314,20 +314,20 @@ function CronSection() {
       <SectionTitle>⏰ Cron Jobs</SectionTitle>
 
       <p className="text-[#8b949e] mb-4">
-        Requieren header <code className="text-[#7ee787]">Authorization: Bearer CRON_SECRET</code>
+        Require header <code className="text-[#7ee787]">Authorization: Bearer CRON_SECRET</code>
       </p>
 
       <Table
-        headers={['Endpoint', 'Schedule', 'Descripción']}
+        headers={['Endpoint', 'Schedule', 'Description']}
         rows={[
-          ['/api/cron/cleanup', '0 * * * *', 'Limpieza general'],
-          ['/api/cron/nudges', '*/15 * * * *', 'Recordatorios streak'],
-          ['/api/cron/friend-streaks', '0 0 * * *', 'Reset streaks rotos'],
-          ['/api/cron/cleanup-social', '0 * * * *', 'Limpiar sesiones'],
+          ['/api/cron/cleanup', '0 * * * *', 'General cleanup'],
+          ['/api/cron/nudges', '*/15 * * * *', 'Streak reminders'],
+          ['/api/cron/friend-streaks', '0 0 * * *', 'Reset broken streaks'],
+          ['/api/cron/cleanup-social', '0 * * * *', 'Clean sessions'],
         ]}
       />
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Configuración Vercel</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Vercel Configuration</h3>
       <CodeBlock title="vercel.json">{`{
   "crons": [
     { "path": "/api/cron/cleanup", "schedule": "0 * * * *" },
@@ -345,22 +345,22 @@ function PushSection() {
     <div>
       <SectionTitle>🔔 Push Notifications</SectionTitle>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Tipos de Notificaciones</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Notification Types</h3>
       <Table
-        headers={['Tipo', 'Trigger', 'Contenido']}
+        headers={['Type', 'Trigger', 'Content']}
         rows={[
-          ['Window Open', 'Cron nudges', 'La ventana está abierta'],
-          ['Streak Risk', 'Cron nudges', 'Tu streak está en riesgo'],
-          ['Friend Pulse', 'POST /api/pulse', 'María compartió su vibe'],
-          ['Friend Streak Risk', 'Cron friend-streaks', 'Tu streak con X está en riesgo'],
+          ['Window Open', 'Cron nudges', 'The window is now open'],
+          ['Streak Risk', 'Cron nudges', 'Your streak is at risk'],
+          ['Friend Pulse', 'POST /api/pulse', 'Maria shared her vibe'],
+          ['Friend Streak Risk', 'Cron friend-streaks', 'Your streak with X is at risk'],
         ]}
       />
 
       <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Android Channels</h3>
       <ul className="list-disc list-inside text-[#8b949e] space-y-1">
-        <li><code>default</code> - Ventanas y general</li>
-        <li><code>streak</code> - Alertas de streak</li>
-        <li><code>friend_activity</code> - Actividad de amigos</li>
+        <li><code>default</code> - Windows and general</li>
+        <li><code>streak</code> - Streak alerts</li>
+        <li><code>friend_activity</code> - Friends activity</li>
       </ul>
     </div>
   );
@@ -369,15 +369,15 @@ function PushSection() {
 function MonitorSection() {
   return (
     <div>
-      <SectionTitle>📊 Monitoreo</SectionTitle>
+      <SectionTitle>📊 Monitoring</SectionTitle>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Métricas Clave</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Key Metrics</h3>
       <Table
-        headers={['Métrica', 'Query/Método']}
+        headers={['Metric', 'Query/Method']}
         rows={[
           ['DAU', 'SELECT FROM aggregates_global_day'],
-          ['Pulses/Ventana', 'SELECT FROM aggregates_global_window'],
-          ['Streaks Activos', 'COUNT users WHERE streak_days > 0'],
+          ['Pulses/Window', 'SELECT FROM aggregates_global_window'],
+          ['Active Streaks', 'COUNT users WHERE streak_days > 0'],
           ['Friend Streaks', 'COUNT friend_streaks WHERE streak_days > 0'],
           ['Referrals', 'SUM referral_count FROM users'],
         ]}
@@ -390,11 +390,11 @@ curl https://your-app.vercel.app/api/pulse -I
 # Database: Supabase Dashboard > Logs
 # Push: OneSignal Dashboard`}</CodeBlock>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Alertas Recomendadas</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Recommended Alerts</h3>
       <ul className="list-disc list-inside text-[#8b949e] space-y-1">
-        <li>Error rate &gt; 1% en /api/pulse</li>
-        <li>Latencia &gt; 2s en /api/pulse</li>
-        <li>Cron jobs fallidos</li>
+        <li>Error rate &gt; 1% on /api/pulse</li>
+        <li>Latency &gt; 2s on /api/pulse</li>
+        <li>Failed cron jobs</li>
         <li>Push delivery rate &lt; 90%</li>
       </ul>
     </div>
@@ -408,47 +408,47 @@ function TroubleshootSection() {
 
       <div className="space-y-6">
         <div className="p-4 bg-[#161b22] rounded-lg border border-[#30363d]">
-          <h4 className="font-semibold text-[#f85149] mb-2">&quot;User not found&quot; en pulse</h4>
+          <h4 className="font-semibold text-[#f85149] mb-2">&quot;User not found&quot; on pulse</h4>
           <ol className="list-decimal list-inside text-[#8b949e] space-y-1 text-sm">
-            <li>Verificar userId existe en users</li>
-            <li>Verificar /api/users/bootstrap funciona</li>
+            <li>Verify userId exists in users table</li>
+            <li>Verify /api/users/bootstrap works</li>
           </ol>
         </div>
 
         <div className="p-4 bg-[#161b22] rounded-lg border border-[#30363d]">
-          <h4 className="font-semibold text-[#f85149] mb-2">Streak no incrementa</h4>
+          <h4 className="font-semibold text-[#f85149] mb-2">Streak not incrementing</h4>
           <ol className="list-decimal list-inside text-[#8b949e] space-y-1 text-sm">
-            <li>Verificar logs de submit_pulse_atomic</li>
-            <li>Verificar no hay pulses duplicados</li>
-            <li>Verificar timezone del usuario</li>
+            <li>Check submit_pulse_atomic logs</li>
+            <li>Verify no duplicate pulses</li>
+            <li>Verify user timezone</li>
           </ol>
         </div>
 
         <div className="p-4 bg-[#161b22] rounded-lg border border-[#30363d]">
-          <h4 className="font-semibold text-[#f85149] mb-2">Friend streak no actualiza</h4>
+          <h4 className="font-semibold text-[#f85149] mb-2">Friend streak not updating</h4>
           <ol className="list-decimal list-inside text-[#8b949e] space-y-1 text-sm">
-            <li>Verificar mutual follow existe</li>
-            <li>Verificar entrada en friend_streaks</li>
-            <li>Verificar update_friend_streaks() se ejecuta</li>
+            <li>Verify mutual follow exists</li>
+            <li>Verify friend_streaks entry</li>
+            <li>Verify update_friend_streaks() executes</li>
           </ol>
         </div>
 
         <div className="p-4 bg-[#161b22] rounded-lg border border-[#30363d]">
-          <h4 className="font-semibold text-[#f85149] mb-2">Push no llegan</h4>
+          <h4 className="font-semibold text-[#f85149] mb-2">Push notifications not arriving</h4>
           <ol className="list-decimal list-inside text-[#8b949e] space-y-1 text-sm">
-            <li>Verificar OneSignal credentials</li>
-            <li>Verificar onesignal_player_id en users</li>
-            <li>Verificar push_opt_in = true</li>
+            <li>Verify OneSignal credentials</li>
+            <li>Verify onesignal_player_id in users</li>
+            <li>Verify push_opt_in = true</li>
             <li>Check OneSignal dashboard</li>
           </ol>
         </div>
 
         <div className="p-4 bg-[#161b22] rounded-lg border border-[#30363d]">
-          <h4 className="font-semibold text-[#f85149] mb-2">Lucky drops no aparecen</h4>
+          <h4 className="font-semibold text-[#f85149] mb-2">Lucky drops not showing</h4>
           <ol className="list-decimal list-inside text-[#8b949e] space-y-1 text-sm">
-            <li>Es 5% probabilidad - puede tomar varios pulses</li>
-            <li>Verificar lucky_drops tabla</li>
-            <li>Verificar LuckyDropNotification está montado</li>
+            <li>It&apos;s 5% probability - may take several pulses</li>
+            <li>Verify lucky_drops table</li>
+            <li>Verify LuckyDropNotification is mounted</li>
           </ol>
         </div>
       </div>
@@ -459,9 +459,9 @@ function TroubleshootSection() {
 function EnvSection() {
   return (
     <div>
-      <SectionTitle>🔐 Variables de Entorno</SectionTitle>
+      <SectionTitle>🔐 Environment Variables</SectionTitle>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Requeridas</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Required</h3>
       <CodeBlock title=".env">{`# Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
@@ -479,7 +479,7 @@ ADMIN_TOKEN=your-admin-token
 # App
 NEXT_PUBLIC_APP_URL=https://your-app.vercel.app`}</CodeBlock>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Opcionales</h3>
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Optional</h3>
       <CodeBlock title=".env">{`# Analytics
 NEXT_PUBLIC_GA_ID=G-XXXXXXX
 
@@ -498,10 +498,10 @@ function DeploySection() {
       <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Pre-Deploy Checklist</h3>
       <ul className="space-y-2 text-[#8b949e]">
         {[
-          'Migraciones de DB aplicadas',
-          'Variables de entorno configuradas',
-          'OneSignal app creada',
-          'Cron jobs en vercel.json',
+          'DB migrations applied',
+          'Environment variables configured',
+          'OneSignal app created',
+          'Cron jobs in vercel.json',
         ].map((item) => (
           <li key={item} className="flex items-center gap-2">
             <span className="w-4 h-4 border border-[#30363d] rounded"></span>
@@ -513,10 +513,10 @@ function DeploySection() {
       <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Post-Deploy Checklist</h3>
       <ul className="space-y-2 text-[#8b949e]">
         {[
-          'Verificar /api/pulse funciona',
-          'Verificar push notifications llegan',
-          'Verificar cron jobs ejecutan',
-          'Verificar analytics tracking',
+          'Verify /api/pulse works',
+          'Verify push notifications arrive',
+          'Verify cron jobs execute',
+          'Verify analytics tracking',
         ].map((item) => (
           <li key={item} className="flex items-center gap-2">
             <span className="w-4 h-4 border border-[#30363d] rounded"></span>
@@ -525,21 +525,21 @@ function DeploySection() {
         ))}
       </ul>
 
-      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Comandos</h3>
-      <CodeBlock title="bash">{`# Aplicar migraciones
+      <h3 className="text-lg font-semibold text-[#c9d1d9] mt-6 mb-3">Commands</h3>
+      <CodeBlock title="bash">{`# Apply migrations
 supabase db push
 
-# Deploy a Vercel
+# Deploy to Vercel
 vercel --prod
 
-# Verificar deploy
+# Verify deploy
 curl https://your-app.vercel.app/api/pulse -I`}</CodeBlock>
 
       <h3 className="text-lg font-semibold text-[#f85149] mt-6 mb-3">Rollback</h3>
       <ol className="list-decimal list-inside text-[#8b949e] space-y-1">
-        <li>Revertir deployment en Vercel Dashboard</li>
-        <li>Si hay cambios de DB, revertir migración manualmente</li>
-        <li>Verificar datos de usuarios no se perdieron</li>
+        <li>Revert deployment in Vercel Dashboard</li>
+        <li>If DB changes, revert migration manually</li>
+        <li>Verify user data was not lost</li>
       </ol>
     </div>
   );

@@ -132,6 +132,7 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
         globalTopMood={pulseContext?.globalTopMood}
         globalTopPercentage={pulseContext?.globalTopPercentage}
         remainingTime={remainingTime}
+        nextWindow={nextWindow}
         shieldUsed={lastPulseResult?.shieldUsed}
         streakLost={lastPulseResult?.streakLost}
         onViewResults={() => router.push('/results')}

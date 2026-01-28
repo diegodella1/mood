@@ -17,7 +17,7 @@ export interface AuraDefinition {
 export const AURA_DEFINITIONS: Record<NonNullable<AuraType>, AuraDefinition> = {
   fire: {
     id: 'fire',
-    name: 'Fuego',
+    name: 'Fire',
     description: '7+ days streak',
     icon: '🔥',
     minStreak: 7,
@@ -27,7 +27,7 @@ export const AURA_DEFINITIONS: Record<NonNullable<AuraType>, AuraDefinition> = {
   },
   lightning: {
     id: 'lightning',
-    name: 'Rayo',
+    name: 'Lightning',
     description: '30+ days streak',
     icon: '⚡',
     minStreak: 30,
@@ -37,8 +37,8 @@ export const AURA_DEFINITIONS: Record<NonNullable<AuraType>, AuraDefinition> = {
   },
   diamond: {
     id: 'diamond',
-    name: 'Diamante',
-    description: '100+ days streak (permanente)',
+    name: 'Diamond',
+    description: '100+ days streak (permanent)',
     icon: '💎',
     minStreak: 100,
     cssClass: 'aura-diamond',
@@ -57,12 +57,12 @@ export interface StreakMilestone {
 }
 
 export const STREAK_MILESTONES: StreakMilestone[] = [
-  { days: 3, name: 'Primeros pasos', icon: '🌱', reward: 'Badge "Warming Up"' },
-  { days: 7, name: 'Una semana', icon: '🔥', reward: 'Aura Fuego', aura: 'fire' },
-  { days: 14, name: 'Dos semanas', icon: '💪', reward: 'Badge "Fortnight Force"' },
-  { days: 30, name: 'Un mes', icon: '⚡', reward: 'Aura Rayo', aura: 'lightning' },
+  { days: 3, name: 'First Steps', icon: '🌱', reward: 'Badge "Warming Up"' },
+  { days: 7, name: 'One Week', icon: '🔥', reward: 'Fire Aura', aura: 'fire' },
+  { days: 14, name: 'Two Weeks', icon: '💪', reward: 'Badge "Fortnight Force"' },
+  { days: 30, name: 'One Month', icon: '⚡', reward: 'Lightning Aura', aura: 'lightning' },
   { days: 50, name: 'Halfway', icon: '🎯', reward: 'Badge "Halfway There"' },
-  { days: 100, name: 'Centurion', icon: '💎', reward: 'Aura Diamante permanente', aura: 'diamond' },
+  { days: 100, name: 'Centurion', icon: '💎', reward: 'Permanent Diamond Aura', aura: 'diamond' },
 ];
 
 /**
@@ -120,10 +120,10 @@ export function getMilestoneProgress(currentStreak: number): {
  */
 export function getStreakLevelName(streakDays: number): string {
   if (streakDays >= 100) return 'Centurion';
-  if (streakDays >= 50) return 'Veterano';
-  if (streakDays >= 30) return 'Maestro';
-  if (streakDays >= 14) return 'Dedicado';
-  if (streakDays >= 7) return 'Guerrero';
-  if (streakDays >= 3) return 'Iniciado';
-  return 'Nuevo';
+  if (streakDays >= 50) return 'Veteran';
+  if (streakDays >= 30) return 'Master';
+  if (streakDays >= 14) return 'Dedicated';
+  if (streakDays >= 7) return 'Warrior';
+  if (streakDays >= 3) return 'Initiate';
+  return 'Newcomer';
 }

@@ -19,6 +19,7 @@ interface PostPulseScreenProps {
   globalTopMood?: string;
   globalTopPercentage?: number;
   remainingTime?: { minutes: number; seconds: number } | null;
+  nextWindow?: { windowType: string; startsAt: Date } | null;
   onViewResults?: () => void;
   onShare?: () => void;
   // New props from atomic function
@@ -41,6 +42,7 @@ export function PostPulseScreen({
   globalTopMood,
   globalTopPercentage,
   remainingTime,
+  nextWindow,
   onViewResults,
   onShare,
   shieldUsed,
@@ -256,23 +258,43 @@ export function PostPulseScreen({
           />
         </motion.div>
 
-        {/* Time remaining */}
-        {remainingTime && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="mt-6 pt-4 border-t border-[var(--surface-border)]"
-          >
-            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-1">
-              Window closes in
-            </p>
-            <div className="font-mono text-2xl font-semibold text-[var(--color-aurora-cyan)] glow-text-cyan">
-              {String(remainingTime.minutes).padStart(2, '0')}:
-              {String(remainingTime.seconds).padStart(2, '0')}
+        {/* Time remaining & next window */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="mt-6 pt-4 border-t border-[var(--surface-border)] space-y-4"
+        >
+          {remainingTime && (
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-1">
+                Window closes in
+              </p>
+              <div className="font-mono text-2xl font-semibold text-[var(--color-aurora-cyan)] glow-text-cyan">
+                {String(remainingTime.minutes).padStart(2, '0')}:
+                {String(remainingTime.seconds).padStart(2, '0')}
+              </div>
             </div>
-          </motion.div>
-        )}
+          )}
+
+          {nextWindow && (
+            <div className="p-3 rounded-lg bg-[var(--surface-glass-light)]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">
+                    {nextWindow.windowType === 'morning' ? '🌅' : nextWindow.windowType === 'afternoon' ? '☀️' : '🌙'}
+                  </span>
+                  <span className="text-sm text-[var(--color-text-secondary)]">
+                    Next: <span className="capitalize font-medium text-[var(--color-text-primary)]">{nextWindow.windowType}</span>
+                  </span>
+                </div>
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  {nextWindow.startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+          )}
+        </motion.div>
       </div>
 
       {/* Next milestone teaser */}
@@ -312,7 +334,7 @@ function MilestoneCelebration({
   onClose: () => void;
 }) {
   const milestoneData: Record<number, { title: string; icon: string; message: string }> = {
-    3: { title: 'Primeros Pasos', icon: '🌱', message: 'You\'re building a habit!' },
+    3: { title: 'First Steps', icon: '🌱', message: 'You\'re building a habit!' },
     7: { title: 'Week Warrior', icon: '🔥', message: 'Fire aura unlocked!' },
     14: { title: 'Fortnight Force', icon: '💪', message: 'Two weeks strong!' },
     30: { title: 'Monthly Master', icon: '⚡', message: 'Lightning aura unlocked!' },

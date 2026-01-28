@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useActiveWindow } from '@/hooks/useActiveWindow';
 
 const springSmooth = { type: 'spring' as const, damping: 25, stiffness: 200 };
 
@@ -21,12 +22,28 @@ export function DailyProgress({
   currentWindow,
   hasSubmittedCurrentWindow,
 }: DailyProgressProps) {
+  const { isActive, nextWindow, remainingTime } = useActiveWindow();
   const totalWindows = 3;
   const actualCompleted = hasSubmittedCurrentWindow
     ? windowsCompleted
     : windowsCompleted;
 
   const progressPercent = (actualCompleted / totalWindows) * 100;
+
+  // Format countdown for next window
+  const formatCountdown = (date: Date) => {
+    const diff = date.getTime() - new Date().getTime();
+    if (diff <= 0) return null;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff / (1000 * 60)) % 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  const nextWindowCountdown = nextWindow ? formatCountdown(nextWindow.startsAt) : null;
+  const shouldShowNextWindow = !isActive || (isActive && hasSubmittedCurrentWindow);
 
   // Messages based on progress (Goal-Gradient + Zeigarnik)
   const getMessage = () => {
@@ -158,6 +175,50 @@ export function DailyProgress({
           <p className="text-sm text-[var(--color-aurora-purple)] text-center">
             <strong>So close!</strong> Complete this window for a perfect day bonus
           </p>
+        </motion.div>
+      )}
+
+      {/* Next window countdown */}
+      {shouldShowNextWindow && nextWindow && nextWindowCountdown && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="mt-4 p-3 rounded-lg bg-[var(--color-aurora-cyan)]/10 border border-[var(--color-aurora-cyan)]/20"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">
+                {nextWindow.windowType === 'morning' ? '🌅' : nextWindow.windowType === 'afternoon' ? '☀️' : '🌙'}
+              </span>
+              <span className="text-sm text-[var(--color-text-secondary)]">
+                Next: <span className="capitalize font-medium text-[var(--color-text-primary)]">{nextWindow.windowType}</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--color-text-muted)]">opens in</span>
+              <span className="font-mono font-semibold text-[var(--color-aurora-cyan)]">
+                {nextWindowCountdown}
+              </span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Current window remaining time */}
+      {isActive && !hasSubmittedCurrentWindow && remainingTime && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="mt-4 p-3 rounded-lg bg-[var(--surface-glass-light)]"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              Window closes in
+            </span>
+            <span className="font-mono font-semibold text-[var(--color-aurora-amber)]">
+              {remainingTime.minutes}m {remainingTime.seconds}s
+            </span>
+          </div>
         </motion.div>
       )}
     </motion.div>
