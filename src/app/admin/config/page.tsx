@@ -71,7 +71,28 @@ export default function ConfigPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setConfig({ ...defaultConfig, ...data.config });
+        // Deep merge to ensure all nested objects exist
+        const merged = {
+          ...defaultConfig,
+          ...data.config,
+          windows: {
+            ...defaultConfig.windows,
+            ...(data.config?.windows || {}),
+            schedule: data.config?.windows?.schedule || defaultConfig.windows.schedule,
+          },
+          privacy: { ...defaultConfig.privacy, ...(data.config?.privacy || {}) },
+          push: {
+            ...defaultConfig.push,
+            ...(data.config?.push || {}),
+            quiet_hours: data.config?.push?.quiet_hours || defaultConfig.push.quiet_hours,
+          },
+          flip: { ...defaultConfig.flip, ...(data.config?.flip || {}) },
+          shift: { ...defaultConfig.shift, ...(data.config?.shift || {}) },
+          battles: { ...defaultConfig.battles, ...(data.config?.battles || {}) },
+          a2hs: { ...defaultConfig.a2hs, ...(data.config?.a2hs || {}) },
+          nudges: { ...defaultConfig.nudges, ...(data.config?.nudges || {}) },
+        };
+        setConfig(merged);
       }
     } catch (error) {
       console.error('Error fetching config:', error);
@@ -204,7 +225,7 @@ export default function ConfigPage() {
         </div>
 
         <div className="space-y-3">
-          {Object.entries(config.windows.schedule)
+          {Object.entries(config.windows?.schedule || {})
             .sort(([, a], [, b]) => a.start - b.start)
             .map(([windowName, windowConfig]) => (
             <div key={windowName} className="flex items-center gap-4 p-4 bg-zinc-800/50 rounded-lg">
@@ -312,7 +333,7 @@ export default function ConfigPage() {
           ))}
         </div>
 
-        {Object.keys(config.windows.schedule).length === 0 && (
+        {Object.keys(config.windows?.schedule || {}).length === 0 && (
           <div className="text-center py-8 text-zinc-500">
             No windows configured. Click "Add Window" to create one.
           </div>
