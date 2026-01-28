@@ -1,36 +1,138 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Global Pulse
+
+The emotional thermometer of the world. Share how you feel with one tap and see how the planet feels.
+
+## Features
+
+- **3 Daily Windows**: Morning, Afternoon, Night - pulse during each window
+- **Streaks & Auras**: Build your streak, unlock Fire (7d), Lightning (30d), Diamond (100d - permanent!)
+- **Friends System**: Follow friends, create shared streaks (Snapchat-style)
+- **Lucky Drops**: 5% chance per pulse to win shields, special emojis
+- **12 Secret Achievements**: Hidden challenges to discover
+- **Live Counter**: See who's pulsing right now
+- **World Map**: Visualize global emotions in real-time
+- **City Leaderboards**: Compete with your city
+
+## Tech Stack
+
+- **Frontend**: Next.js 14, React 18, Framer Motion, Tailwind CSS
+- **Backend**: Next.js API Routes, Supabase (PostgreSQL)
+- **Push Notifications**: OneSignal
+- **Maps**: Mapbox GL
+- **Hosting**: Vercel
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+
+- Supabase account
+- OneSignal account
+- Mapbox account (optional, for maps)
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/your-username/global-pulse.git
+cd global-pulse
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Copy environment variables:
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Fill in your `.env.local` with your credentials (see `.env.example` for details)
 
-## Learn More
+5. Run database migrations:
+```bash
+# Using Supabase CLI
+npx supabase db push
 
-To learn more about Next.js, take a look at the following resources:
+# Or manually run SQL files from supabase/migrations/ in Supabase SQL Editor
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+6. Start the development server:
+```bash
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+7. Open [http://localhost:3000](http://localhost:3000)
 
-## Deploy on Vercel
+## Database Migrations
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Migrations are in `supabase/migrations/`. Run them in order:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. `001` - Initial schema
+2. `006` - Atomic functions
+3. `009` - Security & performance
+4. `010` - Viral features (referrals, leaderboards)
+5. `011` - Social features (friends, streaks, drops, achievements)
+
+## Cron Jobs
+
+Configure in `vercel.json` for production:
+
+```json
+{
+  "crons": [
+    { "path": "/api/cron/cleanup", "schedule": "0 * * * *" },
+    { "path": "/api/cron/nudges", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/friend-streaks", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/cleanup-social", "schedule": "0 * * * *" }
+  ]
+}
+```
+
+## Admin Panel
+
+Access at `/admin` with your `ADMIN_SECRET`.
+
+Features:
+- User management
+- Event creation
+- City battles
+- Push notifications
+- System alerts
+- Configuration
+
+## Documentation
+
+- `/guide` - Game guide for players
+- `/about` - About Global Pulse
+- `/docs/operations` - Technical operations manual
+- `docs/GAME_GUIDE.md` - Full game documentation
+- `docs/OPERATIONS_MANUAL.md` - Ops documentation
+
+## Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/global-pulse)
+
+1. Connect your GitHub repo
+2. Add environment variables in Vercel dashboard
+3. Deploy!
+
+## Environment Variables
+
+See `.env.example` for all required variables:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key |
+| `NEXT_PUBLIC_ONESIGNAL_APP_ID` | Yes | OneSignal App ID |
+| `ONESIGNAL_REST_API_KEY` | Yes | OneSignal REST API Key |
+| `CRON_SECRET` | Yes | Secret for cron job auth |
+| `ADMIN_SECRET` | Yes | Secret for admin panel |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Mapbox token for maps |
+
+## License
+
+MIT

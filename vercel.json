@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/cleanup",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-social",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/friend-streaks",
+      "schedule": "0 0 * * *"
     }
   ]
 }
