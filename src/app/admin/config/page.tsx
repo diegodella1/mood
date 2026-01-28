@@ -171,19 +171,74 @@ export default function ConfigPage() {
 
       {/* Window Schedule */}
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Window Schedule</h2>
-        <div className="grid grid-cols-3 gap-4">
-          {['morning', 'afternoon', 'night'].map((window) => (
-            <div key={window} className="space-y-2">
-              <h3 className="text-zinc-400 capitalize">{window}</h3>
-              <div className="flex gap-2">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Window Schedule</h2>
+            <p className="text-sm text-zinc-500">Configure when users can pulse. Hours are in 24h format (0-23).</p>
+          </div>
+          <button
+            onClick={() => {
+              const windowName = prompt('Enter window name (e.g., "early_morning", "lunch"):');
+              if (windowName && windowName.trim()) {
+                const name = windowName.trim().toLowerCase().replace(/\s+/g, '_');
+                if (config.windows.schedule[name]) {
+                  alert('A window with this name already exists!');
+                  return;
+                }
+                setConfig((prev) => ({
+                  ...prev,
+                  windows: {
+                    ...prev.windows,
+                    schedule: {
+                      ...prev.windows.schedule,
+                      [name]: { start: 12, end: 14 },
+                    },
+                  },
+                }));
+              }
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+          >
+            + Add Window
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {Object.entries(config.windows.schedule)
+            .sort(([, a], [, b]) => a.start - b.start)
+            .map(([windowName, windowConfig]) => (
+            <div key={windowName} className="flex items-center gap-4 p-4 bg-zinc-800/50 rounded-lg">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={windowName}
+                  onChange={(e) => {
+                    const newName = e.target.value.toLowerCase().replace(/\s+/g, '_');
+                    if (newName === windowName) return;
+                    if (config.windows.schedule[newName]) return;
+
+                    const newSchedule = { ...config.windows.schedule };
+                    newSchedule[newName] = newSchedule[windowName];
+                    delete newSchedule[windowName];
+
+                    setConfig((prev) => ({
+                      ...prev,
+                      windows: { ...prev.windows, schedule: newSchedule },
+                    }));
+                  }}
+                  className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded text-white font-medium"
+                  placeholder="Window name"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
                 <div>
-                  <label className="text-xs text-zinc-500">Start</label>
+                  <label className="text-xs text-zinc-500 block mb-1">Start Hour</label>
                   <input
                     type="number"
                     min={0}
                     max={23}
-                    value={config.windows.schedule[window]?.start ?? 0}
+                    value={windowConfig.start}
                     onChange={(e) =>
                       setConfig((prev) => ({
                         ...prev,
@@ -191,21 +246,24 @@ export default function ConfigPage() {
                           ...prev.windows,
                           schedule: {
                             ...prev.windows.schedule,
-                            [window]: { ...prev.windows.schedule[window], start: parseInt(e.target.value) },
+                            [windowName]: { ...prev.windows.schedule[windowName], start: parseInt(e.target.value) || 0 },
                           },
                         },
                       }))
                     }
-                    className="w-20 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white"
+                    className="w-20 px-3 py-2 bg-zinc-700 border border-zinc-600 rounded text-white text-center"
                   />
                 </div>
+
+                <span className="text-zinc-500 mt-5">→</span>
+
                 <div>
-                  <label className="text-xs text-zinc-500">End</label>
+                  <label className="text-xs text-zinc-500 block mb-1">End Hour</label>
                   <input
                     type="number"
                     min={0}
-                    max={23}
-                    value={config.windows.schedule[window]?.end ?? 0}
+                    max={24}
+                    value={windowConfig.end}
                     onChange={(e) =>
                       setConfig((prev) => ({
                         ...prev,
@@ -213,17 +271,58 @@ export default function ConfigPage() {
                           ...prev.windows,
                           schedule: {
                             ...prev.windows.schedule,
-                            [window]: { ...prev.windows.schedule[window], end: parseInt(e.target.value) },
+                            [windowName]: { ...prev.windows.schedule[windowName], end: parseInt(e.target.value) || 0 },
                           },
                         },
                       }))
                     }
-                    className="w-20 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white"
+                    className="w-20 px-3 py-2 bg-zinc-700 border border-zinc-600 rounded text-white text-center"
                   />
                 </div>
               </div>
+
+              <div className="text-sm text-zinc-400 w-24 text-center">
+                {windowConfig.start}:00 - {windowConfig.end}:00
+              </div>
+
+              <button
+                onClick={() => {
+                  if (Object.keys(config.windows.schedule).length <= 1) {
+                    alert('You must have at least one window!');
+                    return;
+                  }
+                  if (!confirm(`Delete window "${windowName}"?`)) return;
+
+                  const newSchedule = { ...config.windows.schedule };
+                  delete newSchedule[windowName];
+
+                  setConfig((prev) => ({
+                    ...prev,
+                    windows: { ...prev.windows, schedule: newSchedule },
+                  }));
+                }}
+                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded transition-colors"
+                title="Delete window"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
             </div>
           ))}
+        </div>
+
+        {Object.keys(config.windows.schedule).length === 0 && (
+          <div className="text-center py-8 text-zinc-500">
+            No windows configured. Click "Add Window" to create one.
+          </div>
+        )}
+
+        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          <p className="text-sm text-blue-400">
+            <strong>Tips:</strong> Windows are sorted by start time. Users can only pulse during active windows.
+            Changes take effect immediately after saving (cached for 60 seconds).
+          </p>
         </div>
       </div>
 

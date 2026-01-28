@@ -7,7 +7,7 @@ const springSmooth = { type: 'spring' as const, damping: 25, stiffness: 200 };
 
 interface DailyProgressProps {
   windowsCompleted: number;
-  currentWindow: 'morning' | 'afternoon' | 'night' | null;
+  currentWindow: string | null;
   hasSubmittedCurrentWindow: boolean;
 }
 

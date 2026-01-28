@@ -2,6 +2,11 @@ import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
 import { WINDOWS, WindowType } from './constants';
 
+// Type for dynamic windows config
+export interface WindowsConfig {
+  [key: string]: { start: number; end: number };
+}
+
 /**
  * Get the user's timezone from the browser
  */
@@ -28,13 +33,22 @@ export function getCurrentDateInTimezone(timezone: string): string {
 /**
  * Determine which window is currently active for a timezone
  * Returns null if no window is active
+ * @param timezone - User's timezone
+ * @param windows - Optional custom windows config (defaults to WINDOWS constant)
  */
-export function getActiveWindow(timezone: string): WindowType | null {
+export function getActiveWindow(timezone: string, windows: WindowsConfig = WINDOWS): string | null {
   const hour = getCurrentHourInTimezone(timezone);
 
-  for (const [windowType, { start, end }] of Object.entries(WINDOWS)) {
-    if (hour >= start && hour < end) {
-      return windowType as WindowType;
+  for (const [windowType, { start, end }] of Object.entries(windows)) {
+    // Handle windows that cross midnight (e.g., night: 22-2)
+    if (start > end) {
+      if (hour >= start || hour < end) {
+        return windowType;
+      }
+    } else {
+      if (hour >= start && hour < end) {
+        return windowType;
+      }
     }
   }
 
@@ -44,16 +58,21 @@ export function getActiveWindow(timezone: string): WindowType | null {
 /**
  * Get the next window start time for a timezone
  * Returns the window type and the Date when it starts
+ * @param timezone - User's timezone
+ * @param windows - Optional custom windows config (defaults to WINDOWS constant)
  */
-export function getNextWindow(timezone: string): { windowType: WindowType; startsAt: Date } {
+export function getNextWindow(timezone: string, windows: WindowsConfig = WINDOWS): { windowType: string; startsAt: Date } {
   const now = new Date();
   const zonedNow = toZonedTime(now, timezone);
   const currentHour = zonedNow.getHours();
 
-  const windowOrder: WindowType[] = ['morning', 'afternoon', 'night'];
+  // Sort windows by start time
+  const windowOrder = Object.entries(windows)
+    .sort(([, a], [, b]) => a.start - b.start)
+    .map(([type]) => type);
 
   for (const windowType of windowOrder) {
-    const { start } = WINDOWS[windowType];
+    const { start } = windows[windowType];
     if (currentHour < start) {
       // This window is today
       const startsAt = new Date(zonedNow);
@@ -62,25 +81,40 @@ export function getNextWindow(timezone: string): { windowType: WindowType; start
     }
   }
 
-  // All windows passed today, next is morning tomorrow
+  // All windows passed today, next is first window tomorrow
+  const firstWindow = windowOrder[0];
   const tomorrow = new Date(zonedNow);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(WINDOWS.morning.start, 0, 0, 0);
-  return { windowType: 'morning', startsAt: tomorrow };
+  tomorrow.setHours(windows[firstWindow].start, 0, 0, 0);
+  return { windowType: firstWindow, startsAt: tomorrow };
 }
 
 /**
  * Get remaining time in the current window
  * Returns null if no window is active
+ * @param timezone - User's timezone
+ * @param windows - Optional custom windows config (defaults to WINDOWS constant)
  */
-export function getWindowRemainingTime(timezone: string): { minutes: number; seconds: number } | null {
-  const activeWindow = getActiveWindow(timezone);
+export function getWindowRemainingTime(timezone: string, windows: WindowsConfig = WINDOWS): { minutes: number; seconds: number } | null {
+  const activeWindow = getActiveWindow(timezone, windows);
   if (!activeWindow) return null;
+
+  const windowConfig = windows[activeWindow];
+  if (!windowConfig) return null;
 
   const now = new Date();
   const zonedNow = toZonedTime(now, timezone);
   const windowEnd = new Date(zonedNow);
-  windowEnd.setHours(WINDOWS[activeWindow].end, 0, 0, 0);
+
+  // Handle windows that cross midnight
+  if (windowConfig.start > windowConfig.end) {
+    const currentHour = zonedNow.getHours();
+    if (currentHour >= windowConfig.start) {
+      // We're before midnight, end is tomorrow
+      windowEnd.setDate(windowEnd.getDate() + 1);
+    }
+  }
+  windowEnd.setHours(windowConfig.end, 0, 0, 0);
 
   const diffMs = windowEnd.getTime() - zonedNow.getTime();
 
@@ -100,7 +134,7 @@ export function getWindowRemainingTime(timezone: string): { minutes: number; sec
 /**
  * Generate window ID in format: date|window_type|timezone
  */
-export function generateWindowId(date: string, windowType: WindowType, timezone: string): string {
+export function generateWindowId(date: string, windowType: string, timezone: string): string {
   return `${date}|${windowType}|${timezone}`;
 }
 

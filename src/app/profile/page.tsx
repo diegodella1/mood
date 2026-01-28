@@ -535,9 +535,14 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Error state */}
+          {/* Error state - show friendly message instead of error */}
           {reactionsError && !reactionsLoading && (
-            <p className="text-sm text-red-400 text-center py-4">{reactionsError}</p>
+            <div className="text-center py-6">
+              <span className="text-4xl mb-3 block opacity-50">💭</span>
+              <p className="text-sm text-[var(--color-text-muted)]">
+                Reactions will appear here once you start receiving them
+              </p>
+            </div>
           )}
 
           {/* Empty state */}

@@ -41,8 +41,16 @@ export async function PATCH(request: NextRequest) {
       .eq('id', 'main')
       .single();
 
-    // Deep merge with new values
+    // Deep merge with new values, but replace windows.schedule entirely (to handle deletions)
     const mergedConfig = deepMerge(current?.config || {}, body);
+
+    // If windows.schedule is provided, replace it entirely instead of merging
+    if (body.windows?.schedule) {
+      mergedConfig.windows = {
+        ...(mergedConfig.windows as Record<string, unknown>),
+        schedule: body.windows.schedule,
+      };
+    }
 
     const { data: updated, error } = await supabaseAdmin
       .from('app_config')

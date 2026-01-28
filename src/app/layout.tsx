@@ -4,6 +4,7 @@ import './globals.css';
 import { UserProvider } from '@/providers/UserProvider';
 import { OneSignalProvider } from '@/providers/OneSignalProvider';
 import { TourProvider } from '@/providers/TourProvider';
+import { ConfigProvider } from '@/providers/ConfigProvider';
 import { InstallPrompt } from '@/components/InstallPrompt';
 
 // Display font - geometric, modern, distinctive
@@ -65,14 +66,16 @@ export default function RootLayout({
         className={`${sora.variable} ${plusJakarta.variable} ${jetbrainsMono.variable} antialiased min-h-screen`}
       >
         <div className="cosmic-bg" />
-        <UserProvider>
-          <OneSignalProvider>
-            <TourProvider>
-              {children}
-              <InstallPrompt />
-            </TourProvider>
-          </OneSignalProvider>
-        </UserProvider>
+        <ConfigProvider>
+          <UserProvider>
+            <OneSignalProvider>
+              <TourProvider>
+                {children}
+                <InstallPrompt />
+              </TourProvider>
+            </OneSignalProvider>
+          </UserProvider>
+        </ConfigProvider>
       </body>
     </html>
   );
