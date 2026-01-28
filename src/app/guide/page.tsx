@@ -49,9 +49,29 @@ export default function GuidePage() {
         </div>
       </motion.header>
 
+      {/* Mobile Navigation - Outside flex container */}
+      <div className="md:hidden sticky top-[72px] z-40 bg-[var(--color-space)]/90 backdrop-blur-lg border-b border-[var(--surface-border)] overflow-x-auto">
+        <div className="flex p-2 gap-1 max-w-4xl mx-auto">
+          {sections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActiveSection(section.id)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-all ${
+                activeSection === section.id
+                  ? 'bg-[var(--color-aurora-cyan)]/20 text-[var(--color-aurora-cyan)]'
+                  : 'text-[var(--color-text-secondary)]'
+              }`}
+            >
+              <span>{section.icon}</span>
+              <span>{section.title}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex-1 flex max-w-4xl mx-auto w-full">
-        {/* Sidebar Navigation */}
-        <nav className="hidden md:flex flex-col w-48 p-4 border-r border-[var(--surface-border)] sticky top-20 h-fit">
+        {/* Sidebar Navigation - Desktop only */}
+        <nav className="hidden md:flex flex-col w-48 shrink-0 p-4 border-r border-[var(--surface-border)] sticky top-20 h-fit">
           {sections.map((section) => (
             <button
               key={section.id}
@@ -68,28 +88,8 @@ export default function GuidePage() {
           ))}
         </nav>
 
-        {/* Mobile Navigation */}
-        <div className="md:hidden sticky top-16 z-40 bg-[var(--color-space)]/80 backdrop-blur-lg border-b border-[var(--surface-border)] overflow-x-auto">
-          <div className="flex p-2 gap-1">
-            {sections.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-all ${
-                  activeSection === section.id
-                    ? 'bg-[var(--color-aurora-cyan)]/20 text-[var(--color-aurora-cyan)]'
-                    : 'text-[var(--color-text-secondary)]'
-                }`}
-              >
-                <span>{section.icon}</span>
-                <span>{section.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Content */}
-        <div className="flex-1 p-6 md:p-8 overflow-y-auto">
+        <div className="flex-1 min-w-0 p-4 md:p-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeSection}
