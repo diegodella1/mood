@@ -20,7 +20,7 @@ const springSmooth = { type: 'spring' as const, damping: 25, stiffness: 200 };
 const springBouncy = { type: 'spring' as const, damping: 12, stiffness: 120 };
 
 export default function ProfilePage() {
-  const { user, isLoading, updateUser } = useUser();
+  const { user, isLoading, error: userError, updateUser } = useUser();
   const { isSubscribed, requestPermission } = useOneSignal();
   const { startTour, hasCompletedTour } = useTourContext();
   const [isCitySelectorOpen, setIsCitySelectorOpen] = useState(false);
@@ -186,6 +186,29 @@ export default function ProfilePage() {
         <div className="relative">
           <div className="w-16 h-16 border-3 border-[var(--color-aurora-cyan)] border-t-transparent rounded-full animate-spin" />
           <div className="absolute inset-0 aurora-gradient opacity-30 blur-xl rounded-full" />
+        </div>
+      </main>
+    );
+  }
+
+  // Show error if user failed to load
+  if (userError || !user) {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center p-6">
+        <div className="glass-card p-8 text-center max-w-md">
+          <span className="text-5xl mb-4 block">⚠️</span>
+          <h1 className="font-display text-xl font-bold text-[var(--color-text-primary)] mb-2">
+            Failed to Load Profile
+          </h1>
+          <p className="text-[var(--color-text-secondary)] mb-4">
+            {userError || 'Unable to connect to the server. Please check your internet connection.'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 aurora-gradient rounded-xl font-medium text-white"
+          >
+            Retry
+          </button>
         </div>
       </main>
     );

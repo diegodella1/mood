@@ -5,9 +5,9 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 const bootstrapSchema = z.object({
   userId: z.string().uuid(),
   timezone: z.string(),
-  countryCode: z.string().optional(),
-  cityId: z.string().optional(),
-  displayName: z.string().max(20).optional(),
+  countryCode: z.string().nullable().optional(),
+  cityId: z.string().nullable().optional(),
+  displayName: z.string().max(20).nullable().optional(),
 });
 
 // Generate a unique referral code
@@ -26,15 +26,20 @@ export async function POST(request: NextRequest) {
     const data = bootstrapSchema.parse(body);
 
     // Try to detect country from request headers (Vercel/Cloudflare provide this)
-    const countryCode = data.countryCode ||
-      request.headers.get('x-vercel-ip-country') ||
-      request.headers.get('cf-ipcountry') ||
-      null;
+    // Only use headers as fallback if countryCode/cityId wasn't explicitly passed
+    const countryCode = data.countryCode !== undefined
+      ? (data.countryCode || null)
+      : (request.headers.get('x-vercel-ip-country') ||
+         request.headers.get('cf-ipcountry') ||
+         null);
 
-    const cityId = data.cityId ||
-      request.headers.get('x-vercel-ip-city') ||
-      request.headers.get('cf-ipcity') ||
-      null;
+    // If cityId is explicitly passed (even as null or empty string), use it
+    // Otherwise fall back to headers for auto-detection
+    const cityId = data.cityId !== undefined
+      ? (data.cityId || null)
+      : (request.headers.get('x-vercel-ip-city') ||
+         request.headers.get('cf-ipcity') ||
+         null);
 
     // Check if user exists and needs referral code
     const { data: existingUser } = await supabaseAdmin

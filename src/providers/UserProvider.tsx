@@ -90,16 +90,27 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
+      // Build request body - only include fields that are being updated
+      const body: Record<string, unknown> = {
+        userId: user.id,
+        timezone: updates.timezone ?? user.timezone,
+      };
+
+      // Only include these fields if they're explicitly being updated
+      if ('countryCode' in updates) {
+        body.countryCode = updates.countryCode;
+      }
+      if ('cityId' in updates) {
+        body.cityId = updates.cityId;
+      }
+      if ('displayName' in updates) {
+        body.displayName = updates.displayName;
+      }
+
       const response = await fetch('/api/users/bootstrap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          timezone: updates.timezone || user.timezone,
-          countryCode: updates.countryCode,
-          cityId: updates.cityId,
-          displayName: updates.displayName,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
