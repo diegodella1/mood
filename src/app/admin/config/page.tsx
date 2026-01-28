@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 interface AppConfig {
   windows: {
@@ -42,6 +42,65 @@ interface AppConfig {
   };
 }
 
+// Helper to format hour as 12h or 24h
+function formatHour(hour: number, use24h = true): string {
+  if (use24h) return `${hour.toString().padStart(2, '0')}:00`;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const h = hour % 12 || 12;
+  return `${h}:00 ${period}`;
+}
+
+// Check if two windows overlap
+function windowsOverlap(
+  a: { start: number; end: number },
+  b: { start: number; end: number }
+): boolean {
+  // Handle windows that might cross midnight
+  const aStart = a.start;
+  const aEnd = a.end <= a.start ? a.end + 24 : a.end;
+  const bStart = b.start;
+  const bEnd = b.end <= b.start ? b.end + 24 : b.end;
+
+  // Check overlap
+  return aStart < bEnd && bStart < aEnd;
+}
+
+// Get all overlapping windows
+function getOverlappingWindows(
+  schedule: Record<string, { start: number; end: number }>
+): Set<string> {
+  const overlapping = new Set<string>();
+  const entries = Object.entries(schedule);
+
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i + 1; j < entries.length; j++) {
+      const [nameA, windowA] = entries[i];
+      const [nameB, windowB] = entries[j];
+
+      if (windowsOverlap(windowA, windowB)) {
+        overlapping.add(nameA);
+        overlapping.add(nameB);
+      }
+    }
+  }
+
+  return overlapping;
+}
+
+// Check if a window has valid hours (end > start, or crosses midnight intentionally)
+function isValidWindow(window: { start: number; end: number }): { valid: boolean; error?: string } {
+  if (window.start < 0 || window.start > 23) {
+    return { valid: false, error: 'Start hour must be 0-23' };
+  }
+  if (window.end < 0 || window.end > 24) {
+    return { valid: false, error: 'End hour must be 0-24' };
+  }
+  if (window.start === window.end) {
+    return { valid: false, error: 'Window cannot be 0 hours' };
+  }
+  return { valid: true };
+}
+
 const defaultConfig: AppConfig = {
   windows: { enabled: true, schedule: { morning: { start: 8, end: 11 }, afternoon: { start: 13, end: 16 }, night: { start: 20, end: 23 } }, tolerance_minutes: 5 },
   privacy: { min_city_pulses: 10, min_segment_pulses: 5 },
@@ -58,9 +117,21 @@ export default function ConfigPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [userTimezone, setUserTimezone] = useState('');
+
+  // Calculate overlapping windows
+  const overlappingWindows = useMemo(
+    () => getOverlappingWindows(config.windows?.schedule || {}),
+    [config.windows?.schedule]
+  );
+
+  // Check if save should be blocked
+  const hasValidationErrors = overlappingWindows.size > 0;
 
   useEffect(() => {
     fetchConfig();
+    // Get user's timezone for display
+    setUserTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   }, []);
 
   const fetchConfig = async () => {
@@ -149,10 +220,11 @@ export default function ConfigPage() {
         </div>
         <button
           onClick={handleSave}
-          disabled={saving}
-          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+          disabled={saving || hasValidationErrors}
+          className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          title={hasValidationErrors ? 'Fix overlapping windows before saving' : ''}
         >
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? 'Saving...' : hasValidationErrors ? 'Fix Errors to Save' : 'Save Changes'}
         </button>
       </div>
 
@@ -195,24 +267,45 @@ export default function ConfigPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-white">Window Schedule</h2>
-            <p className="text-sm text-zinc-500">Configure when users can pulse. Hours are in 24h format (0-23).</p>
+            <p className="text-sm text-zinc-500">
+              Configure when users can pulse. Times are in each user&apos;s local timezone.
+            </p>
+            {userTimezone && (
+              <p className="text-xs text-zinc-600 mt-1">
+                Your timezone: <span className="text-zinc-400">{userTimezone}</span>
+              </p>
+            )}
           </div>
           <button
             onClick={() => {
               const windowName = prompt('Enter window name (e.g., "early_morning", "lunch"):');
               if (windowName && windowName.trim()) {
                 const name = windowName.trim().toLowerCase().replace(/\s+/g, '_');
-                if (config.windows.schedule[name]) {
+                if (config.windows?.schedule?.[name]) {
                   alert('A window with this name already exists!');
                   return;
+                }
+                // Find a gap in the schedule or default to 12-14
+                const schedule = config.windows?.schedule || {};
+                const usedHours = new Set<number>();
+                Object.values(schedule).forEach(w => {
+                  for (let h = w.start; h < w.end; h++) usedHours.add(h);
+                });
+                // Find first available 2-hour block
+                let startHour = 12;
+                for (let h = 0; h <= 22; h++) {
+                  if (!usedHours.has(h) && !usedHours.has(h + 1)) {
+                    startHour = h;
+                    break;
+                  }
                 }
                 setConfig((prev) => ({
                   ...prev,
                   windows: {
                     ...prev.windows,
                     schedule: {
-                      ...prev.windows.schedule,
-                      [name]: { start: 12, end: 14 },
+                      ...(prev.windows?.schedule || {}),
+                      [name]: { start: startHour, end: startHour + 2 },
                     },
                   },
                 }));
@@ -224,125 +317,258 @@ export default function ConfigPage() {
           </button>
         </div>
 
+        {/* Visual Timeline */}
+        <div className="mb-6 p-4 bg-zinc-800/30 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-zinc-500">24-Hour Timeline (user&apos;s local time)</span>
+            <div className="flex items-center gap-4 text-xs">
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-blue-500"></span>
+                <span className="text-zinc-400">Active Window</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-red-500"></span>
+                <span className="text-zinc-400">Overlap</span>
+              </span>
+            </div>
+          </div>
+          <div className="relative h-12 bg-zinc-800 rounded-lg overflow-hidden">
+            {/* Hour markers */}
+            <div className="absolute inset-0 flex">
+              {Array.from({ length: 24 }, (_, i) => (
+                <div key={i} className="flex-1 border-r border-zinc-700/50 relative">
+                  {i % 6 === 0 && (
+                    <span className="absolute -bottom-5 left-0 text-[10px] text-zinc-500 transform -translate-x-1/2">
+                      {formatHour(i, true)}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Window blocks */}
+            {Object.entries(config.windows?.schedule || {})
+              .sort(([, a], [, b]) => a.start - b.start)
+              .map(([name, window]) => {
+                const isOverlapping = overlappingWindows.has(name);
+                const duration = window.end > window.start
+                  ? window.end - window.start
+                  : (24 - window.start) + window.end;
+                const widthPercent = (duration / 24) * 100;
+                const leftPercent = (window.start / 24) * 100;
+
+                return (
+                  <div
+                    key={name}
+                    className={`absolute top-1 bottom-1 rounded transition-all ${
+                      isOverlapping
+                        ? 'bg-red-500/60 border-2 border-red-400'
+                        : 'bg-blue-500/60 border border-blue-400/50'
+                    }`}
+                    style={{
+                      left: `${leftPercent}%`,
+                      width: `${widthPercent}%`,
+                    }}
+                    title={`${name}: ${formatHour(window.start)} - ${formatHour(window.end)}`}
+                  >
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-white truncate px-1">
+                      {name}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+          <div className="h-4"></div>
+        </div>
+
+        {/* Overlap Warning */}
+        {overlappingWindows.size > 0 && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg">
+            <p className="text-sm text-red-400 font-medium">
+              ⚠️ Overlapping windows detected: {Array.from(overlappingWindows).join(', ')}
+            </p>
+            <p className="text-xs text-red-400/70 mt-1">
+              Windows cannot overlap. Please adjust the times to remove conflicts before saving.
+            </p>
+          </div>
+        )}
+
+        {/* Window List */}
         <div className="space-y-3">
           {Object.entries(config.windows?.schedule || {})
             .sort(([, a], [, b]) => a.start - b.start)
-            .map(([windowName, windowConfig]) => (
-            <div key={windowName} className="flex items-center gap-4 p-4 bg-zinc-800/50 rounded-lg">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  value={windowName}
-                  onChange={(e) => {
-                    const newName = e.target.value.toLowerCase().replace(/\s+/g, '_');
-                    if (newName === windowName) return;
-                    if (config.windows.schedule[newName]) return;
+            .map(([windowName, windowConfig]) => {
+              const isOverlapping = overlappingWindows.has(windowName);
+              const validation = isValidWindow(windowConfig);
+              const duration = windowConfig.end > windowConfig.start
+                ? windowConfig.end - windowConfig.start
+                : (24 - windowConfig.start) + windowConfig.end;
 
-                    const newSchedule = { ...config.windows.schedule };
-                    newSchedule[newName] = newSchedule[windowName];
-                    delete newSchedule[windowName];
+              return (
+                <div
+                  key={windowName}
+                  className={`p-4 rounded-lg transition-all ${
+                    isOverlapping
+                      ? 'bg-red-500/10 border-2 border-red-500/50'
+                      : 'bg-zinc-800/50 border border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Window Name */}
+                    <div className="flex-1">
+                      <label className="text-xs text-zinc-500 block mb-1">Window Name</label>
+                      <input
+                        type="text"
+                        value={windowName}
+                        onChange={(e) => {
+                          const newName = e.target.value.toLowerCase().replace(/\s+/g, '_');
+                          if (newName === windowName) return;
+                          if (!newName) return;
+                          if (config.windows?.schedule?.[newName]) return;
 
-                    setConfig((prev) => ({
-                      ...prev,
-                      windows: { ...prev.windows, schedule: newSchedule },
-                    }));
-                  }}
-                  className="w-full px-3 py-2 bg-zinc-700 border border-zinc-600 rounded text-white font-medium"
-                  placeholder="Window name"
-                />
-              </div>
+                          const newSchedule = { ...(config.windows?.schedule || {}) };
+                          newSchedule[newName] = newSchedule[windowName];
+                          delete newSchedule[windowName];
 
-              <div className="flex items-center gap-2">
-                <div>
-                  <label className="text-xs text-zinc-500 block mb-1">Start Hour</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={23}
-                    value={windowConfig.start}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        windows: {
-                          ...prev.windows,
-                          schedule: {
-                            ...prev.windows.schedule,
-                            [windowName]: { ...prev.windows.schedule[windowName], start: parseInt(e.target.value) || 0 },
-                          },
-                        },
-                      }))
-                    }
-                    className="w-20 px-3 py-2 bg-zinc-700 border border-zinc-600 rounded text-white text-center"
-                  />
+                          setConfig((prev) => ({
+                            ...prev,
+                            windows: { ...prev.windows, schedule: newSchedule },
+                          }));
+                        }}
+                        className={`w-full px-3 py-2 bg-zinc-700 border rounded text-white font-medium ${
+                          isOverlapping ? 'border-red-500' : 'border-zinc-600'
+                        }`}
+                        placeholder="Window name"
+                      />
+                    </div>
+
+                    {/* Start Hour */}
+                    <div>
+                      <label className="text-xs text-zinc-500 block mb-1">Start</label>
+                      <select
+                        value={windowConfig.start}
+                        onChange={(e) => {
+                          const newStart = parseInt(e.target.value);
+                          // Auto-adjust end if it would create invalid window
+                          let newEnd = windowConfig.end;
+                          if (newStart >= newEnd && newEnd !== 0) {
+                            newEnd = Math.min(newStart + 2, 24);
+                          }
+                          setConfig((prev) => ({
+                            ...prev,
+                            windows: {
+                              ...prev.windows,
+                              schedule: {
+                                ...(prev.windows?.schedule || {}),
+                                [windowName]: { start: newStart, end: newEnd },
+                              },
+                            },
+                          }));
+                        }}
+                        className={`w-24 px-3 py-2 bg-zinc-700 border rounded text-white ${
+                          isOverlapping ? 'border-red-500' : 'border-zinc-600'
+                        }`}
+                      >
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i}>{formatHour(i)}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <span className="text-zinc-500 mt-5">→</span>
+
+                    {/* End Hour */}
+                    <div>
+                      <label className="text-xs text-zinc-500 block mb-1">End</label>
+                      <select
+                        value={windowConfig.end}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            windows: {
+                              ...prev.windows,
+                              schedule: {
+                                ...(prev.windows?.schedule || {}),
+                                [windowName]: {
+                                  ...(prev.windows?.schedule?.[windowName] || { start: 0 }),
+                                  end: parseInt(e.target.value)
+                                },
+                              },
+                            },
+                          }))
+                        }
+                        className={`w-24 px-3 py-2 bg-zinc-700 border rounded text-white ${
+                          isOverlapping ? 'border-red-500' : 'border-zinc-600'
+                        }`}
+                      >
+                        {Array.from({ length: 25 }, (_, i) => (
+                          <option key={i} value={i}>{i === 24 ? '24:00' : formatHour(i)}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Duration Display */}
+                    <div className="w-20 text-center">
+                      <label className="text-xs text-zinc-500 block mb-1">Duration</label>
+                      <span className={`text-sm font-medium ${
+                        isOverlapping ? 'text-red-400' : 'text-zinc-300'
+                      }`}>
+                        {duration}h
+                      </span>
+                    </div>
+
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => {
+                        if (Object.keys(config.windows?.schedule || {}).length <= 1) {
+                          alert('You must have at least one window!');
+                          return;
+                        }
+                        if (!confirm(`Delete window "${windowName}"?`)) return;
+
+                        const newSchedule = { ...(config.windows?.schedule || {}) };
+                        delete newSchedule[windowName];
+
+                        setConfig((prev) => ({
+                          ...prev,
+                          windows: { ...prev.windows, schedule: newSchedule },
+                        }));
+                      }}
+                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded transition-colors mt-4"
+                      title="Delete window"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Validation Error */}
+                  {!validation.valid && (
+                    <p className="text-xs text-red-400 mt-2">{validation.error}</p>
+                  )}
+
+                  {/* Overlap indicator */}
+                  {isOverlapping && (
+                    <p className="text-xs text-red-400 mt-2">
+                      This window overlaps with another. Adjust times to fix.
+                    </p>
+                  )}
                 </div>
-
-                <span className="text-zinc-500 mt-5">→</span>
-
-                <div>
-                  <label className="text-xs text-zinc-500 block mb-1">End Hour</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={24}
-                    value={windowConfig.end}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        windows: {
-                          ...prev.windows,
-                          schedule: {
-                            ...prev.windows.schedule,
-                            [windowName]: { ...prev.windows.schedule[windowName], end: parseInt(e.target.value) || 0 },
-                          },
-                        },
-                      }))
-                    }
-                    className="w-20 px-3 py-2 bg-zinc-700 border border-zinc-600 rounded text-white text-center"
-                  />
-                </div>
-              </div>
-
-              <div className="text-sm text-zinc-400 w-24 text-center">
-                {windowConfig.start}:00 - {windowConfig.end}:00
-              </div>
-
-              <button
-                onClick={() => {
-                  if (Object.keys(config.windows.schedule).length <= 1) {
-                    alert('You must have at least one window!');
-                    return;
-                  }
-                  if (!confirm(`Delete window "${windowName}"?`)) return;
-
-                  const newSchedule = { ...config.windows.schedule };
-                  delete newSchedule[windowName];
-
-                  setConfig((prev) => ({
-                    ...prev,
-                    windows: { ...prev.windows, schedule: newSchedule },
-                  }));
-                }}
-                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded transition-colors"
-                title="Delete window"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          ))}
+              );
+            })}
         </div>
 
         {Object.keys(config.windows?.schedule || {}).length === 0 && (
           <div className="text-center py-8 text-zinc-500">
-            No windows configured. Click "Add Window" to create one.
+            No windows configured. Click &quot;Add Window&quot; to create one.
           </div>
         )}
 
         <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
           <p className="text-sm text-blue-400">
-            <strong>Tips:</strong> Windows are sorted by start time. Users can only pulse during active windows.
-            Changes take effect immediately after saving (cached for 60 seconds).
+            <strong>How it works:</strong> Each user sees windows in their local timezone.
+            If you set a &quot;morning&quot; window from 8:00-11:00, users in New York see 8-11am EST,
+            while users in London see 8-11am GMT.
           </p>
         </div>
       </div>
