@@ -5,6 +5,7 @@ export const ADMIN_ROUTES = {
   config: '/admin/config',
   users: '/admin/users',
   events: '/admin/events',
+  customWindows: '/admin/custom-windows',
   battles: '/admin/battles',
   notifications: '/admin/notifications',
   alerts: '/admin/alerts',
@@ -53,6 +54,36 @@ export const NOTIFICATION_STATUSES = [
   { value: 'failed', label: 'Failed', color: 'bg-red-500' },
 ] as const;
 
+// Custom Windows constants
+export const CUSTOM_WINDOW_STATUSES = [
+  { value: 'draft', label: 'Draft', color: 'bg-gray-500' },
+  { value: 'scheduled', label: 'Scheduled', color: 'bg-yellow-500' },
+  { value: 'active', label: 'Active', color: 'bg-green-500' },
+  { value: 'completed', label: 'Completed', color: 'bg-blue-500' },
+  { value: 'cancelled', label: 'Cancelled', color: 'bg-red-500' },
+] as const;
+
+export const CUSTOM_WINDOW_EVENT_TYPES = [
+  { value: 'one_time', label: 'One-time Event' },
+  { value: 'recurring', label: 'Recurring Event' },
+] as const;
+
+export const RECURRENCE_FREQUENCIES = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+] as const;
+
+export const DAYS_OF_WEEK = [
+  { value: 'monday', label: 'Monday' },
+  { value: 'tuesday', label: 'Tuesday' },
+  { value: 'wednesday', label: 'Wednesday' },
+  { value: 'thursday', label: 'Thursday' },
+  { value: 'friday', label: 'Friday' },
+  { value: 'saturday', label: 'Saturday' },
+  { value: 'sunday', label: 'Sunday' },
+] as const;
+
 export const ITEMS_PER_PAGE = 20;
 export const MAX_ITEMS_PER_PAGE = 100; // Enforce max limit to prevent DoS
 
@@ -61,6 +92,7 @@ export const SIDEBAR_ITEMS = [
   { href: ADMIN_ROUTES.config, label: 'Config', icon: '⚙️' },
   { href: ADMIN_ROUTES.users, label: 'Users', icon: '👥' },
   { href: ADMIN_ROUTES.events, label: 'Events', icon: '📅' },
+  { href: ADMIN_ROUTES.customWindows, label: 'Custom Windows', icon: '🪟' },
   { href: ADMIN_ROUTES.battles, label: 'Battles', icon: '⚔️' },
   { href: ADMIN_ROUTES.notifications, label: 'Notifications', icon: '🔔' },
   { href: ADMIN_ROUTES.alerts, label: 'Alerts', icon: '📢' },

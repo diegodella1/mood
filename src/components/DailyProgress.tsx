@@ -22,7 +22,7 @@ export function DailyProgress({
   currentWindow,
   hasSubmittedCurrentWindow,
 }: DailyProgressProps) {
-  const { isActive, nextWindow, remainingTime } = useActiveWindow();
+  const { isActive, nextWindow, remainingTime, isCustomWindow, customWindow } = useActiveWindow();
   const totalWindows = 3;
   const actualCompleted = hasSubmittedCurrentWindow
     ? windowsCompleted
@@ -209,15 +209,41 @@ export function DailyProgress({
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="mt-4 p-3 rounded-lg bg-[var(--surface-glass-light)]"
+          className={`mt-4 p-3 rounded-lg ${
+            isCustomWindow
+              ? 'border-2'
+              : 'bg-[var(--surface-glass-light)]'
+          }`}
+          style={isCustomWindow && customWindow ? {
+            borderColor: customWindow.color,
+            backgroundColor: `${customWindow.color}15`,
+          } : {}}
         >
           <div className="flex items-center justify-between">
             <span className="text-sm text-[var(--color-text-secondary)]">
-              Window closes in
+              {isCustomWindow && customWindow ? (
+                <span className="flex items-center gap-2">
+                  <span>{customWindow.icon}</span>
+                  <span className="font-medium text-white">{customWindow.name}</span>
+                </span>
+              ) : (
+                'Window closes in'
+              )}
             </span>
-            <span className="font-mono font-semibold text-[var(--color-aurora-amber)]">
-              {remainingTime.minutes}m {remainingTime.seconds}s
-            </span>
+            <div className="flex items-center gap-2">
+              {isCustomWindow && customWindow && customWindow.xp_multiplier > 1 && (
+                <span className="text-yellow-400 text-xs font-bold bg-yellow-500/20 px-2 py-0.5 rounded-full">
+                  {customWindow.xp_multiplier}x XP
+                </span>
+              )}
+              <span className={`font-mono font-semibold ${
+                isCustomWindow && remainingTime.minutes <= 15
+                  ? 'text-orange-400'
+                  : 'text-[var(--color-aurora-amber)]'
+              }`}>
+                {remainingTime.minutes}m {remainingTime.seconds}s
+              </span>
+            </div>
           </div>
         </motion.div>
       )}

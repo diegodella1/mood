@@ -1,13 +1,24 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { initOneSignal, setExternalUserId, setUserTags, requestPushPermission, isPushEnabled } from '@/lib/onesignal/client';
+import {
+  initOneSignal,
+  setExternalUserId,
+  setUserTags,
+  requestPushPermission,
+  isPushEnabled,
+  getInitializationStatus,
+  getBrowserPermissionState,
+  type PermissionResult
+} from '@/lib/onesignal/client';
 import { useUser } from './UserProvider';
 
 interface OneSignalContextType {
   isInitialized: boolean;
   isSubscribed: boolean;
-  requestPermission: () => Promise<boolean>;
+  initError: string | null;
+  browserPermission: 'granted' | 'denied' | 'default' | 'unsupported';
+  requestPermission: () => Promise<PermissionResult>;
   updateTags: (tags: Record<string, string>) => Promise<void>;
 }
 
@@ -17,12 +28,19 @@ export function OneSignalProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [browserPermission, setBrowserPermission] = useState<'granted' | 'denied' | 'default' | 'unsupported'>('default');
 
   // Initialize OneSignal
   useEffect(() => {
     const init = async () => {
       await initOneSignal();
-      setIsInitialized(true);
+      const status = getInitializationStatus();
+      setIsInitialized(status.initialized);
+      setInitError(status.error);
+
+      // Check browser permission state
+      setBrowserPermission(getBrowserPermissionState());
 
       // Check subscription status
       const subscribed = await isPushEnabled();
@@ -54,11 +72,14 @@ export function OneSignalProvider({ children }: { children: ReactNode }) {
     }
   }, [isInitialized, user?.id, user?.timezone, user?.countryCode, user?.cityId]);
 
-  const requestPermission = useCallback(async (): Promise<boolean> => {
-    const granted = await requestPushPermission();
-    setIsSubscribed(granted);
+  const requestPermission = useCallback(async (): Promise<PermissionResult> => {
+    const result = await requestPushPermission();
+    setIsSubscribed(result.granted);
 
-    if (granted && user?.id) {
+    // Update browser permission state after request
+    setBrowserPermission(getBrowserPermissionState());
+
+    if (result.granted && user?.id) {
       // Update server with push opt-in
       await fetch('/api/push/optin', {
         method: 'POST',
@@ -67,7 +88,7 @@ export function OneSignalProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    return granted;
+    return result;
   }, [user?.id]);
 
   const updateTags = useCallback(async (tags: Record<string, string>): Promise<void> => {
@@ -84,7 +105,7 @@ export function OneSignalProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   return (
-    <OneSignalContext.Provider value={{ isInitialized, isSubscribed, requestPermission, updateTags }}>
+    <OneSignalContext.Provider value={{ isInitialized, isSubscribed, initError, browserPermission, requestPermission, updateTags }}>
       {children}
     </OneSignalContext.Provider>
   );

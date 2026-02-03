@@ -9,6 +9,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { Countdown } from './Countdown';
 import { PostPulseScreen } from './PostPulseScreen';
 import { StreakDisplay } from './StreakDisplay';
+import { EventRewardsBadge, EventBonusTag } from './EventRewardsBadge';
 import { useActiveWindow } from '@/hooks/useActiveWindow';
 import { usePulse } from '@/hooks/usePulse';
 import { useUser } from '@/providers/UserProvider';
@@ -35,7 +36,7 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
   const router = useRouter();
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const { isActive, currentWindow, windowId, remainingTime, nextWindow } = useActiveWindow();
+  const { isActive, currentWindow, windowId, remainingTime, nextWindow, customWindow, isCustomWindow } = useActiveWindow();
   const { submitPulse, isSubmitting, hasSubmittedThisWindow, previousStreak, pulseContext, lastPulseResult } = usePulse();
   const { user } = useUser();
 
@@ -175,19 +176,58 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
         transition={{ ...springSmooth, delay: user?.streakDays ? 0.1 : 0 }}
         className="text-center mb-8"
       >
+        {/* Custom Window Event Header */}
+        {isCustomWindow && customWindow && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-4 p-3 rounded-xl border-2"
+            style={{
+              borderColor: customWindow.color,
+              backgroundColor: `${customWindow.color}15`,
+            }}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <motion.span
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="text-2xl"
+              >
+                {customWindow.icon}
+              </motion.span>
+              <span className="font-bold text-white">{customWindow.name}</span>
+              <EventBonusTag xpMultiplier={customWindow.xp_multiplier} />
+            </div>
+            {customWindow.description && (
+              <p className="text-zinc-400 text-xs mt-1">{customWindow.description}</p>
+            )}
+          </motion.div>
+        )}
+
         <h2 className="font-display text-3xl font-bold text-[var(--color-text-primary)] mb-2">
           How are you feeling?
         </h2>
         <p className="text-[var(--color-text-secondary)]">
-          <span className="capitalize">{currentWindow}</span> pulse is open
+          {isCustomWindow ? (
+            <>Special event active!</>
+          ) : (
+            <><span className="capitalize">{currentWindow}</span> pulse is open</>
+          )}
         </p>
         {remainingTime ? (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="font-mono text-sm text-[var(--color-aurora-cyan)] mt-2"
+            className={`font-mono text-sm mt-2 ${
+              isCustomWindow && remainingTime.minutes <= 15
+                ? 'text-orange-400'
+                : 'text-[var(--color-aurora-cyan)]'
+            }`}
           >
             {remainingTime.minutes}m {remainingTime.seconds}s remaining
+            {isCustomWindow && customWindow && customWindow.xp_multiplier > 1 && (
+              <span className="text-yellow-400 ml-2">({customWindow.xp_multiplier}x XP!)</span>
+            )}
           </motion.p>
         ) : null}
       </motion.div>

@@ -45,6 +45,12 @@ export async function POST(
       return NextResponse.json({ newBadges: [], error: 'User not found' });
     }
 
+    // Get custom window participation count
+    const { count: customWindowCount } = await supabaseAdmin
+      .from('custom_window_participations')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
     const stats: UserStats = {
       currentStreak: dbStats.current_streak || 0,
       totalPulses: Number(dbStats.total_pulses) || 0,
@@ -58,6 +64,7 @@ export async function POST(
       moodMatches: Number(dbStats.mood_matches) || 0,
       battlesParticipated: Number(dbStats.battles_participated) || 0,
       battlesWon: Number(dbStats.battles_won) || 0,
+      customWindowParticipations: customWindowCount || 0,
     };
 
     // Check for new badges

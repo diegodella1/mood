@@ -443,9 +443,178 @@ export interface Database {
         };
         Update: never;
       };
+      custom_windows: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          icon: string;
+          color: string;
+          banner_url: string | null;
+          start_hour: number;
+          end_hour: number;
+          event_type: 'one_time' | 'recurring';
+          event_date: string | null;
+          recurrence_rule: RecurrenceRule | null;
+          recurrence_start: string | null;
+          recurrence_end: string | null;
+          xp_multiplier: number;
+          bonus_badge_id: string | null;
+          lucky_drop_boost: number;
+          notify_on_open: boolean;
+          notify_before_close: boolean;
+          notify_minutes_before: number;
+          custom_notification_title: string | null;
+          custom_notification_body: string | null;
+          target_timezones: string[] | null;
+          target_countries: string[] | null;
+          min_streak_days: number;
+          status: CustomWindowStatus;
+          priority: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string | null;
+          icon?: string;
+          color?: string;
+          banner_url?: string | null;
+          start_hour: number;
+          end_hour: number;
+          event_type?: 'one_time' | 'recurring';
+          event_date?: string | null;
+          recurrence_rule?: RecurrenceRule | null;
+          recurrence_start?: string | null;
+          recurrence_end?: string | null;
+          xp_multiplier?: number;
+          bonus_badge_id?: string | null;
+          lucky_drop_boost?: number;
+          notify_on_open?: boolean;
+          notify_before_close?: boolean;
+          notify_minutes_before?: number;
+          custom_notification_title?: string | null;
+          custom_notification_body?: string | null;
+          target_timezones?: string[] | null;
+          target_countries?: string[] | null;
+          min_streak_days?: number;
+          status?: CustomWindowStatus;
+          priority?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          description?: string | null;
+          icon?: string;
+          color?: string;
+          banner_url?: string | null;
+          start_hour?: number;
+          end_hour?: number;
+          event_type?: 'one_time' | 'recurring';
+          event_date?: string | null;
+          recurrence_rule?: RecurrenceRule | null;
+          recurrence_start?: string | null;
+          recurrence_end?: string | null;
+          xp_multiplier?: number;
+          bonus_badge_id?: string | null;
+          lucky_drop_boost?: number;
+          notify_on_open?: boolean;
+          notify_before_close?: boolean;
+          notify_minutes_before?: number;
+          custom_notification_title?: string | null;
+          custom_notification_body?: string | null;
+          target_timezones?: string[] | null;
+          target_countries?: string[] | null;
+          min_streak_days?: number;
+          status?: CustomWindowStatus;
+          priority?: number;
+        };
+      };
+      custom_window_participations: {
+        Row: {
+          id: string;
+          user_id: string;
+          custom_window_id: string;
+          window_instance_id: string;
+          pulse_id: string | null;
+          xp_earned: number;
+          bonus_applied: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          custom_window_id: string;
+          window_instance_id: string;
+          pulse_id?: string | null;
+          xp_earned?: number;
+          bonus_applied?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          pulse_id?: string | null;
+          xp_earned?: number;
+          bonus_applied?: boolean;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: Record<string, never>;
   };
+}
+
+// Custom Window types
+export type CustomWindowStatus = 'draft' | 'scheduled' | 'active' | 'completed' | 'cancelled';
+export type CustomWindowEventType = 'one_time' | 'recurring';
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly';
+
+export interface RecurrenceRule {
+  frequency: RecurrenceFrequency;
+  daysOfWeek?: string[]; // For weekly: ['monday', 'friday']
+  dayOfMonth?: number;   // For monthly: 1-31
+}
+
+export interface CustomWindow {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string;
+  color: string;
+  banner_url: string | null;
+  start_hour: number;
+  end_hour: number;
+  event_type: CustomWindowEventType;
+  event_date: string | null;
+  recurrence_rule: RecurrenceRule | null;
+  recurrence_start: string | null;
+  recurrence_end: string | null;
+  xp_multiplier: number;
+  bonus_badge_id: string | null;
+  lucky_drop_boost: number;
+  notify_on_open: boolean;
+  notify_before_close: boolean;
+  notify_minutes_before: number;
+  custom_notification_title: string | null;
+  custom_notification_body: string | null;
+  target_timezones: string[] | null;
+  target_countries: string[] | null;
+  min_streak_days: number;
+  status: CustomWindowStatus;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomWindowParticipation {
+  id: string;
+  user_id: string;
+  custom_window_id: string;
+  window_instance_id: string;
+  pulse_id: string | null;
+  xp_earned: number;
+  bonus_applied: boolean;
+  created_at: string;
 }

@@ -221,3 +221,137 @@ export async function updateUserTags(
 
   return { success: true };
 }
+
+/**
+ * Custom Window notification options
+ */
+interface CustomWindowNotificationOptions {
+  windowName: string;
+  icon: string;
+  xpMultiplier: number;
+  customTitle?: string | null;
+  customBody?: string | null;
+}
+
+/**
+ * Send notification when a custom window opens
+ */
+export async function sendCustomWindowOpenNotification(
+  options: CustomWindowNotificationOptions,
+  targetTimezones?: string[] | null,
+  targetCountries?: string[] | null
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  const title = options.customTitle || `${options.icon} ${options.windowName} is LIVE!`;
+  const message = options.customBody ||
+    `Special event active now! ${options.xpMultiplier > 1 ? `Earn ${options.xpMultiplier}x XP on your pulse!` : 'Join and share your mood!'}`;
+
+  // Build filters based on targeting
+  const filters: (FilterTag | { operator: 'OR' | 'AND' })[] = [];
+
+  if (targetTimezones && targetTimezones.length > 0) {
+    targetTimezones.forEach((tz, index) => {
+      if (index > 0) {
+        filters.push({ operator: 'OR' });
+      }
+      filters.push({ field: 'tag', key: 'tz', value: tz });
+    });
+  }
+
+  if (targetCountries && targetCountries.length > 0) {
+    // If we have timezone filters, add AND operator
+    if (filters.length > 0) {
+      filters.push({ operator: 'AND' });
+    }
+
+    // Add country filters with OR between them
+    const countryFilters: (FilterTag | { operator: 'OR' | 'AND' })[] = [];
+    targetCountries.forEach((country, index) => {
+      if (index > 0) {
+        countryFilters.push({ operator: 'OR' });
+      }
+      countryFilters.push({ field: 'tag', key: 'country', value: country });
+    });
+    filters.push(...countryFilters);
+  }
+
+  // If no specific targeting, send to all
+  if (filters.length === 0) {
+    return sendNotificationToAll({
+      title,
+      message,
+      url: '/',
+      data: { type: 'custom_window_open' },
+    });
+  }
+
+  return sendNotificationByTags(
+    {
+      title,
+      message,
+      url: '/',
+      data: { type: 'custom_window_open' },
+    },
+    { filters }
+  );
+}
+
+/**
+ * Send notification when a custom window is closing soon
+ */
+export async function sendCustomWindowClosingNotification(
+  options: CustomWindowNotificationOptions,
+  minutesRemaining: number,
+  targetTimezones?: string[] | null,
+  targetCountries?: string[] | null
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  const urgencyEmoji = minutesRemaining <= 15 ? '⚡' : '⏰';
+  const title = `${urgencyEmoji} ${options.windowName} closing soon!`;
+  const message = `Only ${minutesRemaining} min left! ${options.xpMultiplier > 1 ? `Don't miss ${options.xpMultiplier}x XP!` : 'Share your mood now!'}`;
+
+  // Build filters based on targeting
+  const filters: (FilterTag | { operator: 'OR' | 'AND' })[] = [];
+
+  if (targetTimezones && targetTimezones.length > 0) {
+    targetTimezones.forEach((tz, index) => {
+      if (index > 0) {
+        filters.push({ operator: 'OR' });
+      }
+      filters.push({ field: 'tag', key: 'tz', value: tz });
+    });
+  }
+
+  if (targetCountries && targetCountries.length > 0) {
+    if (filters.length > 0) {
+      filters.push({ operator: 'AND' });
+    }
+
+    const countryFilters: (FilterTag | { operator: 'OR' | 'AND' })[] = [];
+    targetCountries.forEach((country, index) => {
+      if (index > 0) {
+        countryFilters.push({ operator: 'OR' });
+      }
+      countryFilters.push({ field: 'tag', key: 'country', value: country });
+    });
+    filters.push(...countryFilters);
+  }
+
+  // If no specific targeting, send to all
+  if (filters.length === 0) {
+    return sendNotificationToAll({
+      title,
+      message,
+      url: '/',
+      data: { type: 'custom_window_closing' },
+    });
+  }
+
+  return sendNotificationByTags(
+    {
+      title,
+      message,
+      url: '/',
+      data: { type: 'custom_window_closing' },
+    },
+    { filters }
+  );
+}

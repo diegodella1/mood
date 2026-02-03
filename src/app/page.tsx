@@ -19,6 +19,7 @@ import { FriendStreaks } from '@/components/FriendStreaks';
 import { LuckyDropNotification } from '@/components/LuckyDropNotification';
 import { SecretAchievementUnlocked } from '@/components/SecretAchievementUnlocked';
 import { UserSearch } from '@/components/UserSearch';
+import { CustomWindowBanner } from '@/components/CustomWindowBanner';
 import { useUser } from '@/providers/UserProvider';
 import { useOneSignal } from '@/providers/OneSignalProvider';
 import { useActiveWindow } from '@/hooks/useActiveWindow';
@@ -34,7 +35,7 @@ const springSmooth = { type: 'spring' as const, damping: 30, stiffness: 200 };
 export default function HomePage() {
   const { user, isLoading } = useUser();
   const { isSubscribed } = useOneSignal();
-  const { isActive, currentWindow, windowId } = useActiveWindow();
+  const { isActive, currentWindow, windowId, isCustomWindow, customWindow, remainingTime } = useActiveWindow();
   const { hasSubmittedThisWindow } = usePulse();
   useReferral(); // Process referral codes from URL
   const [showPushPrompt, setShowPushPrompt] = useState(false);
@@ -178,6 +179,22 @@ export default function HomePage() {
 
       {/* Live Counter */}
       <LivePulseCounter />
+
+      {/* Custom Window Banner */}
+      {isCustomWindow && customWindow && remainingTime && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="px-4 pb-4"
+        >
+          <div className="max-w-lg mx-auto">
+            <CustomWindowBanner
+              customWindow={customWindow}
+              remainingMinutes={remainingTime.minutes}
+            />
+          </div>
+        </motion.div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">

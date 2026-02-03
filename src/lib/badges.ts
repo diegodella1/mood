@@ -23,6 +23,7 @@ export type BadgeCondition =
   | { type: 'mood_match'; count: number } // Matched global top mood
   | { type: 'battle_participant'; count: number }
   | { type: 'battle_winner'; count: number }
+  | { type: 'custom_window_participant'; count: number } // Participated in custom window events
   | { type: 'special'; event: string }; // Special events
 
 export const BADGE_DEFINITIONS: BadgeDefinition[] = [
@@ -235,6 +236,32 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
     rarity: 'rare',
     condition: { type: 'battle_winner', count: 1 },
   },
+
+  // EVENT BADGES (Custom Window Participation)
+  {
+    id: 'event_explorer',
+    name: 'Event Explorer',
+    description: 'Participated in your first special event',
+    icon: '🎪',
+    rarity: 'common',
+    condition: { type: 'custom_window_participant', count: 1 },
+  },
+  {
+    id: 'event_veteran',
+    name: 'Event Veteran',
+    description: 'Participated in 5 special events',
+    icon: '🎯',
+    rarity: 'uncommon',
+    condition: { type: 'custom_window_participant', count: 5 },
+  },
+  {
+    id: 'event_master',
+    name: 'Event Master',
+    description: 'Participated in 20 special events',
+    icon: '🎊',
+    rarity: 'rare',
+    condition: { type: 'custom_window_participant', count: 20 },
+  },
 ];
 
 // Rarity colors for UI
@@ -298,6 +325,9 @@ export function checkBadgeEligibility(
       case 'battle_winner':
         qualified = stats.battlesWon >= condition.count;
         break;
+      case 'custom_window_participant':
+        qualified = stats.customWindowParticipations >= condition.count;
+        break;
     }
 
     if (qualified) {
@@ -320,4 +350,5 @@ export interface UserStats {
   moodMatches: number;
   battlesParticipated: number;
   battlesWon: number;
+  customWindowParticipations: number;
 }

@@ -26,6 +26,13 @@ export async function GET(request: NextRequest) {
       .from('window_schedules')
       .select('timezone_bucket, window_type, start_hour, end_hour, enabled');
 
+    // Get active custom windows
+    const { data: customWindows } = await supabaseAdmin
+      .from('custom_windows')
+      .select('id, name, description, icon, color, banner_url, start_hour, end_hour, event_type, event_date, recurrence_rule, xp_multiplier, bonus_badge_id, lucky_drop_boost, target_timezones, target_countries, min_streak_days, priority')
+      .in('status', ['active', 'scheduled'])
+      .order('priority', { ascending: false });
+
     // Build public config (only expose what frontend needs)
     const publicConfig = {
       features: {
@@ -35,6 +42,7 @@ export async function GET(request: NextRequest) {
         battles: config.battles?.enabled ?? false,
         a2hs: config.a2hs?.enabled ?? true,
         nudges: config.nudges?.enabled ?? true,
+        customWindows: config.customWindows?.enabled ?? true,
       },
       windows: {
         schedule: config.windows?.schedule ?? {
@@ -44,6 +52,7 @@ export async function GET(request: NextRequest) {
         },
         customSchedules: schedules?.filter(s => s.enabled) || [],
       },
+      customWindows: customWindows || [],
       privacy: {
         minCityPulses: config.privacy?.min_city_pulses ?? 10,
       },
@@ -73,6 +82,7 @@ export async function GET(request: NextRequest) {
         battles: false,
         a2hs: true,
         nudges: true,
+        customWindows: true,
       },
       windows: {
         schedule: {
@@ -82,6 +92,7 @@ export async function GET(request: NextRequest) {
         },
         customSchedules: [],
       },
+      customWindows: [],
       privacy: { minCityPulses: 10 },
       a2hs: { cooldownHours: 72, triggerAfterPulses: 1 },
       battles: { active: [], scoringMode: 'per_capita_bucket' },

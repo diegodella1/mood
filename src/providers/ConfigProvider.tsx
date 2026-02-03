@@ -1,9 +1,31 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import type { RecurrenceRule } from '@/lib/supabase/types';
 
 export interface WindowConfig {
   [key: string]: { start: number; end: number };
+}
+
+export interface CustomWindowConfig {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string;
+  color: string;
+  banner_url: string | null;
+  start_hour: number;
+  end_hour: number;
+  event_type: 'one_time' | 'recurring';
+  event_date: string | null;
+  recurrence_rule: RecurrenceRule | null;
+  xp_multiplier: number;
+  bonus_badge_id: string | null;
+  lucky_drop_boost: number;
+  target_timezones: string[] | null;
+  target_countries: string[] | null;
+  min_streak_days: number;
+  priority: number;
 }
 
 export interface AppConfig {
@@ -14,6 +36,7 @@ export interface AppConfig {
     battles: boolean;
     a2hs: boolean;
     nudges: boolean;
+    customWindows: boolean;
   };
   windows: {
     schedule: WindowConfig;
@@ -25,6 +48,7 @@ export interface AppConfig {
       enabled: boolean;
     }>;
   };
+  customWindows: CustomWindowConfig[];
   privacy: {
     minCityPulses: number;
   };
@@ -41,6 +65,7 @@ const DEFAULT_CONFIG: AppConfig = {
     battles: false,
     a2hs: true,
     nudges: true,
+    customWindows: true,
   },
   windows: {
     schedule: {
@@ -50,6 +75,7 @@ const DEFAULT_CONFIG: AppConfig = {
     },
     customSchedules: [],
   },
+  customWindows: [],
   privacy: {
     minCityPulses: 10,
   },
@@ -74,6 +100,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         setConfig({
           features: data.features || DEFAULT_CONFIG.features,
           windows: data.windows || DEFAULT_CONFIG.windows,
+          customWindows: data.customWindows || DEFAULT_CONFIG.customWindows,
           privacy: data.privacy || DEFAULT_CONFIG.privacy,
           isLoading: false,
           error: null,

@@ -3,12 +3,17 @@ import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { isValidEmoji } from '@/lib/constants';
 import { parseWindowId } from '@/lib/timezone';
+import type { CustomWindow, RecurrenceRule } from '@/lib/supabase/types';
 
 const pulseSchema = z.object({
   userId: z.string().uuid(),
   windowId: z.string(),
   mood: z.string().refine(isValidEmoji, { message: 'Invalid emoji' }),
+  customWindowId: z.string().uuid().optional(), // Optional: ID of custom window if submitting during event
 });
+
+// Base XP for a pulse (used for custom window multiplier)
+const BASE_PULSE_XP = 10;
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,6 +76,27 @@ export async function POST(request: NextRequest) {
     // Result is an array with one row from the function
     const pulseResult = Array.isArray(result) ? result[0] : result;
 
+    // Check and process custom window participation
+    let customWindowBonus: {
+      xpMultiplier: number;
+      xpEarned: number;
+      luckyDropBoost: number;
+      windowName: string;
+      windowIcon: string;
+    } | null = null;
+
+    if (data.customWindowId || data.windowId.startsWith('custom_')) {
+      const customWindowData = await processCustomWindowParticipation(
+        data.userId,
+        data.customWindowId || data.windowId,
+        pulseResult?.pulse_id,
+        date
+      );
+      if (customWindowData) {
+        customWindowBonus = customWindowData;
+      }
+    }
+
     // Get context data for post-pulse screen (non-blocking, can fail)
     const contextData = await getPulseContext(
       data.windowId,
@@ -83,7 +109,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Trigger social and viral mechanics (all non-blocking)
-    const luckyDropPromise = supabaseAdmin.rpc('roll_lucky_drop', { p_user_id: data.userId });
+    // Apply lucky drop boost from custom window if applicable
+    const luckyDropBoostFactor = customWindowBonus?.luckyDropBoost || 1;
+    const luckyDropPromise = supabaseAdmin.rpc('roll_lucky_drop', {
+      p_user_id: data.userId,
+      p_boost_factor: luckyDropBoostFactor,
+    });
     const friendStreaksPromise = supabaseAdmin.rpc('update_friend_streaks', { p_user_id: data.userId });
     const achievementsPromise = supabaseAdmin.rpc('check_secret_achievements', {
       p_user_id: data.userId,
@@ -145,6 +176,8 @@ export async function POST(request: NextRequest) {
       luckyDrop: luckyDrop?.dropped ? luckyDrop : null,
       friendStreaksUpdated,
       newAchievements: achievements,
+      // Custom window bonus info
+      customWindowBonus,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -255,4 +288,105 @@ async function getPulseContext(
   }
 
   return context;
+}
+
+// Process custom window participation and calculate XP bonus
+async function processCustomWindowParticipation(
+  userId: string,
+  customWindowIdOrWindowId: string,
+  pulseId: string | undefined,
+  date: string
+): Promise<{
+  xpMultiplier: number;
+  xpEarned: number;
+  luckyDropBoost: number;
+  windowName: string;
+  windowIcon: string;
+} | null> {
+  try {
+    // Extract custom window ID from the window ID if needed (format: custom_<uuid>_<date>)
+    let customWindowId = customWindowIdOrWindowId;
+    if (customWindowIdOrWindowId.startsWith('custom_')) {
+      const parts = customWindowIdOrWindowId.split('_');
+      if (parts.length >= 2) {
+        customWindowId = parts[1];
+      }
+    }
+
+    // Fetch the custom window
+    const { data: customWindow, error: fetchError } = await supabaseAdmin
+      .from('custom_windows')
+      .select('*')
+      .eq('id', customWindowId)
+      .single();
+
+    if (fetchError || !customWindow) {
+      console.log('Custom window not found:', customWindowId);
+      return null;
+    }
+
+    const window = customWindow as CustomWindow;
+
+    // Verify the window is currently active
+    if (window.status !== 'active') {
+      console.log('Custom window is not active:', window.status);
+      return null;
+    }
+
+    // Calculate the window instance ID
+    const windowInstanceId = `${customWindowId}_${date}`;
+
+    // Check if user already participated in this window instance
+    const { data: existingParticipation } = await supabaseAdmin
+      .from('custom_window_participations')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('window_instance_id', windowInstanceId)
+      .single();
+
+    if (existingParticipation) {
+      console.log('User already participated in this window instance');
+      return null;
+    }
+
+    // Calculate XP earned
+    const xpMultiplier = window.xp_multiplier || 1;
+    const xpEarned = Math.round(BASE_PULSE_XP * xpMultiplier);
+
+    // Record participation
+    const { error: insertError } = await supabaseAdmin
+      .from('custom_window_participations')
+      .insert({
+        user_id: userId,
+        custom_window_id: customWindowId,
+        window_instance_id: windowInstanceId,
+        pulse_id: pulseId || null,
+        xp_earned: xpEarned,
+        bonus_applied: true,
+      });
+
+    if (insertError) {
+      console.error('Failed to record custom window participation:', insertError);
+      // Continue anyway - the user should still get their bonus
+    }
+
+    // Update the pulse with custom_window_id if we have a pulse ID
+    if (pulseId) {
+      await supabaseAdmin
+        .from('pulses')
+        .update({ custom_window_id: customWindowId })
+        .eq('id', pulseId);
+    }
+
+    return {
+      xpMultiplier,
+      xpEarned,
+      luckyDropBoost: window.lucky_drop_boost || 1,
+      windowName: window.name,
+      windowIcon: window.icon,
+    };
+  } catch (error) {
+    console.error('Error processing custom window participation:', error);
+    return null;
+  }
 }

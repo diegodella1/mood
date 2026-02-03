@@ -9,14 +9,19 @@ type AuditAction =
   | 'send_notification'
   | 'schedule_notification'
   | 'cancel_notification'
-  | 'view';
+  | 'view'
+  | 'custom_window_activate'
+  | 'custom_window_deactivate'
+  | 'custom_window_schedule'
+  | 'custom_window_cancel';
 
 type ResourceType =
   | 'user'
   | 'event'
   | 'alert'
   | 'notification'
-  | 'notification_schedule';
+  | 'notification_schedule'
+  | 'custom_window';
 
 interface AuditLogParams {
   request: NextRequest;
