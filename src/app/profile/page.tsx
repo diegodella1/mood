@@ -21,7 +21,7 @@ const springBouncy = { type: 'spring' as const, damping: 12, stiffness: 120 };
 
 export default function ProfilePage() {
   const { user, isLoading, error: userError, updateUser } = useUser();
-  const { isSubscribed, requestPermission } = useOneSignal();
+  const { isSubscribed, isInitialized, initError, browserPermission, requestPermission } = useOneSignal();
   const { startTour, hasCompletedTour } = useTourContext();
   const [isCitySelectorOpen, setIsCitySelectorOpen] = useState(false);
   const [isUpdatingCity, setIsUpdatingCity] = useState(false);
@@ -41,6 +41,11 @@ export default function ProfilePage() {
   } | null>(null);
   const [reactionsLoading, setReactionsLoading] = useState(false);
   const [reactionsError, setReactionsError] = useState<string | null>(null);
+
+  // Notification state
+  const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
+  const [notificationSuccess, setNotificationSuccess] = useState(false);
 
   // Referral state
   const [referralData, setReferralData] = useState<{
@@ -166,7 +171,25 @@ export default function ProfilePage() {
   };
 
   const handleEnableNotifications = async () => {
-    await requestPermission();
+    setIsEnablingNotifications(true);
+    setNotificationError(null);
+
+    try {
+      const result = await requestPermission();
+
+      if (result.granted) {
+        setNotificationSuccess(true);
+        setTimeout(() => setNotificationSuccess(false), 3000);
+      } else if (result.error) {
+        setNotificationError(result.error);
+      } else {
+        setNotificationError('Permission was dismissed. Try again.');
+      }
+    } catch {
+      setNotificationError('Failed to enable notifications');
+    } finally {
+      setIsEnablingNotifications(false);
+    }
   };
 
   const handleCitySelect = async (cityId: string, cityName: string) => {
@@ -659,27 +682,66 @@ export default function ProfilePage() {
             Notifications
           </h2>
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1 mr-4">
               <p className="text-[var(--color-text-primary)]">Push Notifications</p>
               <p className="text-sm text-[var(--color-text-muted)]">
-                Get notified when pulse windows open
+                {browserPermission === 'denied'
+                  ? 'Blocked - click lock icon in address bar to enable'
+                  : browserPermission === 'unsupported'
+                  ? 'Not supported by your browser'
+                  : 'Get notified when pulse windows open'}
               </p>
             </div>
-            {isSubscribed ? (
+            {isSubscribed || notificationSuccess ? (
               <span className="px-4 py-1.5 bg-[var(--color-aurora-teal)]/20 text-[var(--color-aurora-teal)] rounded-full text-sm font-medium">
                 Enabled
+              </span>
+            ) : browserPermission === 'denied' ? (
+              <span className="px-4 py-1.5 bg-red-500/20 text-red-400 rounded-full text-sm font-medium">
+                Blocked
+              </span>
+            ) : browserPermission === 'unsupported' ? (
+              <span className="px-4 py-1.5 bg-zinc-500/20 text-zinc-400 rounded-full text-sm font-medium">
+                Unavailable
               </span>
             ) : (
               <motion.button
                 onClick={handleEnableNotifications}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-5 py-2 aurora-gradient text-white rounded-xl text-sm font-medium shadow-lg shadow-[var(--glow-cyan)]"
+                disabled={isEnablingNotifications || !isInitialized}
+                whileHover={{ scale: isEnablingNotifications ? 1 : 1.05 }}
+                whileTap={{ scale: isEnablingNotifications ? 1 : 0.95 }}
+                className={`px-5 py-2 aurora-gradient text-white rounded-xl text-sm font-medium shadow-lg shadow-[var(--glow-cyan)] ${
+                  (isEnablingNotifications || !isInitialized) ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
               >
-                Enable
+                {isEnablingNotifications ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Enabling...
+                  </span>
+                ) : !isInitialized ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Loading...
+                  </span>
+                ) : (
+                  'Enable'
+                )}
               </motion.button>
             )}
           </div>
+          {/* Error message */}
+          {notificationError && (
+            <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+              {notificationError}
+            </div>
+          )}
+          {/* Init error warning */}
+          {initError && !notificationError && browserPermission !== 'denied' && browserPermission !== 'unsupported' && (
+            <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm">
+              {initError}
+            </div>
+          )}
         </motion.section>
 
         {/* Aura Guide */}
