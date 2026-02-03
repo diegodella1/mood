@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { sendNotificationToUsers } from '@/lib/onesignal/server';
-import { getActiveWindow, generateWindowId, getCurrentDateInTimezone } from '@/lib/timezone';
+import { sendNotificationToUsers, sendWindowReminderToUser } from '@/lib/onesignal/server';
+import { getActiveWindow, generateWindowId, getCurrentDateInTimezone, getWindowRemainingTime } from '@/lib/timezone';
 import { validateCronAuth } from '@/lib/api-utils';
+import { WINDOWS } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,99 @@ export async function GET(request: NextRequest) {
 
     for (const rule of rules) {
       const conditions = rule.conditions || {};
+
+      // Check for window_closing_soon condition - send reminders to users who haven't pulsed
+      if (conditions.window_closing_soon) {
+        const minutesThreshold = conditions.minutes_before_close || 30;
+
+        // Get all users with push enabled
+        const { data: users } = await supabaseAdmin
+          .from('users')
+          .select('id, timezone, streak_days')
+          .eq('push_opt_in', true);
+
+        const usersToRemind: Array<{ userId: string; windowId: string; windowType: string; minutesRemaining: number }> = [];
+
+        for (const user of users || []) {
+          const tz = user.timezone || 'UTC';
+          const activeWindow = getActiveWindow(tz, WINDOWS);
+          if (!activeWindow) continue;
+
+          // Check remaining time in window
+          const remainingTime = getWindowRemainingTime(tz, WINDOWS);
+          if (!remainingTime) continue;
+
+          const minutesRemaining = remainingTime.minutes;
+
+          // Only send if within the threshold window (e.g., 25-30 minutes remaining)
+          if (minutesRemaining > minutesThreshold || minutesRemaining < minutesThreshold - 5) continue;
+
+          const dateStr = getCurrentDateInTimezone(tz);
+          const windowId = generateWindowId(dateStr, activeWindow, tz);
+
+          // Check if user has already pulsed in this window
+          const { data: pulses } = await supabaseAdmin
+            .from('pulses')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('window_id', windowId)
+            .limit(1);
+
+          if (pulses && pulses.length > 0) continue; // Already pulsed
+
+          // Check dedupe - don't send if we already nudged for this window
+          const { data: recentNudges } = await supabaseAdmin
+            .from('nudge_deliveries')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('window_id', windowId)
+            .eq('rule_id', rule.id)
+            .limit(1);
+
+          if (recentNudges && recentNudges.length > 0) continue;
+
+          usersToRemind.push({
+            userId: user.id,
+            windowId,
+            windowType: activeWindow,
+            minutesRemaining,
+          });
+        }
+
+        if (usersToRemind.length > 0) {
+          // Send personalized reminders
+          let sent = 0;
+          for (const reminder of usersToRemind) {
+            try {
+              const result = await sendWindowReminderToUser(
+                reminder.userId,
+                reminder.windowType,
+                reminder.minutesRemaining
+              );
+
+              if (result.success) {
+                sent++;
+                await supabaseAdmin.from('nudge_deliveries').insert({
+                  rule_id: rule.id,
+                  user_id: reminder.userId,
+                  window_id: reminder.windowId,
+                });
+              }
+            } catch (error) {
+              console.error(`Failed to send window reminder to ${reminder.userId}:`, error);
+            }
+          }
+
+          results.push({
+            rule: rule.name,
+            type: 'window_closing_soon',
+            users_targeted: usersToRemind.length,
+            sent,
+          });
+        }
+
+        continue; // Skip to next rule
+      }
 
       // Check if window is active (if required by rule)
       if (conditions.window_active) {

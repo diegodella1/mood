@@ -141,6 +141,60 @@ export async function sendWindowOpenNotification(
 }
 
 /**
+ * Send notification to users in a specific timezone when a window is closing soon
+ */
+export async function sendWindowClosingNotification(
+  timezone: string,
+  windowType: string,
+  minutesRemaining: number
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  const windowLabels: Record<string, string> = {
+    morning: 'Morning',
+    afternoon: 'Afternoon',
+    night: 'Night',
+  };
+
+  const urgencyEmoji = minutesRemaining <= 15 ? '⚡' : '⏰';
+
+  return sendNotificationByTags(
+    {
+      title: `${urgencyEmoji} ${windowLabels[windowType]} Window closing soon!`,
+      message: `Only ${minutesRemaining} minutes left to share your mood. Don't miss it!`,
+      url: '/',
+    },
+    {
+      filters: [
+        { field: 'tag', key: 'tz', value: timezone },
+      ],
+    }
+  );
+}
+
+/**
+ * Send notification to a specific user who hasn't pulsed in the current window
+ */
+export async function sendWindowReminderToUser(
+  externalUserId: string,
+  windowType: string,
+  minutesRemaining: number
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  const windowLabels: Record<string, string> = {
+    morning: 'Morning',
+    afternoon: 'Afternoon',
+    night: 'Night',
+  };
+
+  return sendNotificationToUsers(
+    {
+      title: `⏰ ${minutesRemaining} min left in ${windowLabels[windowType]} window`,
+      message: "You haven't shared your mood yet. Tap to pulse now!",
+      url: '/',
+    },
+    [externalUserId]
+  );
+}
+
+/**
  * Update tags for a specific user
  */
 export async function updateUserTags(

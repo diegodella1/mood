@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WINDOWS, WindowType } from '@/lib/constants';
-import { sendWindowOpenNotification } from '@/lib/onesignal/server';
+import { sendWindowOpenNotification, sendWindowClosingNotification } from '@/lib/onesignal/server';
+
+// Minutes before window end to send closing notification
+const WINDOW_CLOSING_ALERT_MINUTES = 30;
 
 // Common timezones by UTC offset
 const TIMEZONE_GROUPS: Record<number, string[]> = {
@@ -53,32 +56,66 @@ export async function GET(request: NextRequest) {
   const currentUtcHour = now.getUTCHours();
   const currentMinute = now.getUTCMinutes();
 
-  // Only trigger at the start of each window (within first 5 minutes)
-  if (currentMinute >= 5) {
-    return NextResponse.json({ message: 'Not at window boundary', triggered: [] });
-  }
-
-  const triggered: Array<{ timezone: string; window: WindowType }> = [];
+  const triggeredOpen: Array<{ timezone: string; window: WindowType }> = [];
+  const triggeredClosing: Array<{ timezone: string; window: WindowType; minutesRemaining: number }> = [];
 
   // Check each timezone group
   for (const [offsetStr, timezones] of Object.entries(TIMEZONE_GROUPS)) {
     const offset = parseFloat(offsetStr);
     let localHour = currentUtcHour + offset;
+    const localMinute = currentMinute;
 
     // Normalize to 0-23
     if (localHour < 0) localHour += 24;
     if (localHour >= 24) localHour -= 24;
 
-    // Check if any window starts at this hour
-    for (const [windowType, { start }] of Object.entries(WINDOWS)) {
-      if (Math.floor(localHour) === start) {
-        // Send notifications to all timezones in this group
+    // Check each window for opening and closing
+    for (const [windowType, { start, end }] of Object.entries(WINDOWS)) {
+      // ====== WINDOW OPENING ======
+      // Trigger at the start of each window (within first 5 minutes of the hour)
+      if (Math.floor(localHour) === start && localMinute < 5) {
         for (const timezone of timezones) {
           try {
             await sendWindowOpenNotification(timezone, windowType);
-            triggered.push({ timezone, window: windowType as WindowType });
+            triggeredOpen.push({ timezone, window: windowType as WindowType });
           } catch (error) {
-            console.error(`Failed to send notification for ${timezone}:`, error);
+            console.error(`Failed to send OPEN notification for ${timezone}:`, error);
+          }
+        }
+      }
+
+      // ====== WINDOW CLOSING SOON ======
+      // First, verify we're inside this window
+      const currentHourFloor = Math.floor(localHour);
+      const isInWindow = currentHourFloor >= start && currentHourFloor < end;
+
+      if (isInWindow) {
+        // Calculate minutes remaining in the window
+        // Window ends at 'end' hour (e.g., end=11 means window closes at 11:00)
+        const currentTotalMinutes = currentHourFloor * 60 + localMinute;
+        const windowEndTotalMinutes = end * 60;
+
+        // Check if we're approaching the end
+        const minutesRemaining = windowEndTotalMinutes - currentTotalMinutes;
+
+        // Send closing alert when exactly WINDOW_CLOSING_ALERT_MINUTES remain (within 5 min tolerance)
+        // e.g., if WINDOW_CLOSING_ALERT_MINUTES=30, trigger when minutesRemaining is between 26-30
+        if (
+          minutesRemaining > 0 &&
+          minutesRemaining <= WINDOW_CLOSING_ALERT_MINUTES &&
+          minutesRemaining > WINDOW_CLOSING_ALERT_MINUTES - 5
+        ) {
+          for (const timezone of timezones) {
+            try {
+              await sendWindowClosingNotification(timezone, windowType, WINDOW_CLOSING_ALERT_MINUTES);
+              triggeredClosing.push({
+                timezone,
+                window: windowType as WindowType,
+                minutesRemaining: WINDOW_CLOSING_ALERT_MINUTES,
+              });
+            } catch (error) {
+              console.error(`Failed to send CLOSING notification for ${timezone}:`, error);
+            }
           }
         }
       }
@@ -86,7 +123,8 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    message: `Triggered ${triggered.length} notifications`,
-    triggered,
+    message: `Triggered ${triggeredOpen.length} open + ${triggeredClosing.length} closing notifications`,
+    triggeredOpen,
+    triggeredClosing,
   });
 }
