@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { sendNotificationToUsers } from '@/lib/onesignal/server';
 
 const notifySchema = z.object({
   userId: z.string().uuid(),
@@ -24,7 +25,6 @@ export async function POST(request: NextRequest) {
         follower_id,
         follower:users!follows_follower_id_fkey (
           id,
-          onesignal_player_id,
           push_opt_in
         )
       `)
@@ -34,83 +34,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ sent: 0 });
     }
 
-    // Filter followers with push enabled
-    const pushEnabledFollowers = followers.filter((f) => {
-      const follower = f.follower as { onesignal_player_id?: string; push_opt_in?: boolean } | null;
-      return follower?.push_opt_in && follower?.onesignal_player_id;
-    });
-
-    if (pushEnabledFollowers.length === 0) {
-      return NextResponse.json({ sent: 0 });
-    }
-
-    // Get OneSignal player IDs
-    const playerIds = pushEnabledFollowers
-      .map((f) => {
-        const follower = f.follower as { onesignal_player_id?: string } | null;
-        return follower?.onesignal_player_id;
+    // Filter followers with push enabled — use external_id (user.id) instead of player_ids
+    const followerIds = followers
+      .filter((f) => {
+        const follower = f.follower as { id?: string; push_opt_in?: boolean } | null;
+        return follower?.push_opt_in && follower?.id;
       })
-      .filter(Boolean) as string[];
+      .map((f) => {
+        const follower = f.follower as { id: string };
+        return follower.id;
+      });
 
-    if (playerIds.length === 0) {
+    if (followerIds.length === 0) {
       return NextResponse.json({ sent: 0 });
     }
 
-    // Send notification via OneSignal
     const displayName = data.displayName || 'Someone you follow';
-    const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
-    const oneSignalApiKey = process.env.ONESIGNAL_REST_API_KEY;
 
-    if (!oneSignalAppId || !oneSignalApiKey) {
-      console.error('OneSignal credentials not configured');
-      return NextResponse.json({ sent: 0, error: 'Push not configured' });
-    }
+    const result = await sendNotificationToUsers(
+      {
+        title: 'Friend Activity',
+        message: `${displayName} just shared their vibe ${data.emoji}`,
+        url: '/',
+        data: {
+          type: 'friend_pulse',
+          userId: data.userId,
+          emoji: data.emoji,
+        },
+        ttl: 3600,
+        web_push_topic: `friend-pulse-${data.userId}`,
+      },
+      followerIds
+    );
 
-    const notification = {
-      app_id: oneSignalAppId,
-      include_player_ids: playerIds,
-      contents: {
-        en: `${displayName} just shared their vibe ${data.emoji}`,
-        es: `${displayName} compartió su vibe ${data.emoji}`,
-      },
-      headings: {
-        en: 'Friend Activity',
-        es: 'Actividad de Amigo',
-      },
-      data: {
-        type: 'friend_pulse',
-        userId: data.userId,
-        emoji: data.emoji,
-      },
-      // iOS specific
-      ios_badgeType: 'Increase',
-      ios_badgeCount: 1,
-      // Android specific
-      android_channel_id: 'friend_activity',
-      small_icon: 'ic_stat_pulse',
-      // TTL - expire after 1 hour
-      ttl: 3600,
-    };
-
-    const response = await fetch('https://onesignal.com/api/v1/notifications', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Basic ${oneSignalApiKey}`,
-      },
-      body: JSON.stringify(notification),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('OneSignal error:', error);
+    if (!result.success) {
+      console.error('OneSignal error:', result.error);
       return NextResponse.json({ sent: 0, error: 'Push failed' });
     }
 
-    const result = await response.json();
-
     return NextResponse.json({
-      sent: result.recipients || playerIds.length,
+      sent: followerIds.length,
       notificationId: result.id,
     });
   } catch (error) {

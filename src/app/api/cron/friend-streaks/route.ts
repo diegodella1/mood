@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { sendNotificationToUsers } from '@/lib/onesignal/server';
 import { validateCronAuth } from '@/lib/api-utils';
 
 /**
@@ -51,24 +52,6 @@ async function notifyAtRiskStreaks(): Promise<number> {
   try {
     const today = new Date().toISOString().split('T')[0];
 
-    // Find streaks where only one user has pulsed today
-    const { data: atRiskStreaks, error } = await supabaseAdmin
-      .from('friend_streaks')
-      .select(`
-        id,
-        user_a_id,
-        user_b_id,
-        streak_days,
-        last_user_a_pulse,
-        last_user_b_pulse
-      `)
-      .gt('streak_days', 2) // Only notify for meaningful streaks
-      .or(`last_user_a_pulse.eq.${today},last_user_b_pulse.eq.${today}`)
-      .not('last_user_a_pulse', 'eq', today)
-      .not('last_user_b_pulse', 'eq', today);
-
-    // Actually we need XOR logic - one pulsed, other didn't
-    // Let's do this differently
     const { data: allAtRisk } = await supabaseAdmin
       .from('friend_streaks')
       .select('*')
@@ -76,7 +59,7 @@ async function notifyAtRiskStreaks(): Promise<number> {
 
     if (!allAtRisk || allAtRisk.length === 0) return 0;
 
-    const toNotify: { userId: string; friendName: string; streakDays: number }[] = [];
+    const toNotify: { userId: string; friendName: string; streakDays: number; streakId: string }[] = [];
 
     for (const streak of allAtRisk) {
       const aPulsedToday = streak.last_user_a_pulse === today;
@@ -99,54 +82,43 @@ async function notifyAtRiskStreaks(): Promise<number> {
           userId: userToNotify,
           friendName: friend?.display_name || 'Your friend',
           streakDays: streak.streak_days,
+          streakId: streak.id,
         });
       }
     }
 
-    // Send notifications
+    // Send notifications using include_aliases (external_id)
     let sentCount = 0;
     for (const notification of toNotify) {
+      // Check that user has push enabled
       const { data: user } = await supabaseAdmin
         .from('users')
-        .select('onesignal_player_id, push_opt_in')
+        .select('push_opt_in')
         .eq('id', notification.userId)
         .single();
 
-      if (user?.push_opt_in && user?.onesignal_player_id) {
-        const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
-        const oneSignalApiKey = process.env.ONESIGNAL_REST_API_KEY;
+      if (!user?.push_opt_in) continue;
 
-        if (oneSignalAppId && oneSignalApiKey) {
-          try {
-            await fetch('https://onesignal.com/api/v1/notifications', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${oneSignalApiKey}`,
-              },
-              body: JSON.stringify({
-                app_id: oneSignalAppId,
-                include_player_ids: [user.onesignal_player_id],
-                contents: {
-                  en: `Your ${notification.streakDays}-day streak with ${notification.friendName} is at risk! Pulse now to save it 🔥`,
-                  es: `Tu racha de ${notification.streakDays} días con ${notification.friendName} está en riesgo! Pulsea ahora 🔥`,
-                },
-                headings: {
-                  en: 'Streak at Risk!',
-                  es: '¡Racha en Riesgo!',
-                },
-                data: {
-                  type: 'streak_at_risk',
-                  streakDays: notification.streakDays,
-                },
-                ttl: 14400, // 4 hours
-              }),
-            });
-            sentCount++;
-          } catch {
-            // Silent fail for individual notifications
-          }
-        }
+      try {
+        const result = await sendNotificationToUsers(
+          {
+            title: 'Streak at Risk!',
+            message: `Your ${notification.streakDays}-day streak with ${notification.friendName} is at risk! Pulse now to save it 🔥`,
+            url: '/',
+            data: {
+              type: 'streak_at_risk',
+              streakDays: notification.streakDays,
+            },
+            ttl: 14400,
+            web_push_topic: `friend-streak-${notification.streakId}`,
+            idempotency_key: `streak-risk-${notification.streakId}-${new Date().toISOString().split('T')[0]}`,
+          },
+          [notification.userId]
+        );
+
+        if (result.success) sentCount++;
+      } catch {
+        // Silent fail for individual notifications
       }
     }
 

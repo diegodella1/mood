@@ -33,6 +33,7 @@ export async function initOneSignal(): Promise<void> {
       appId,
       allowLocalhostAsSecureOrigin: process.env.NODE_ENV === 'development',
       serviceWorkerPath: '/OneSignalSDKWorker.js',
+      autoResubscribe: true,
     });
     isInitialized = true;
     initializationError = null;
@@ -127,4 +128,62 @@ export function getBrowserPermissionState(): 'granted' | 'denied' | 'default' | 
     return 'unsupported';
   }
   return Notification.permission;
+}
+
+/**
+ * Register notification event listeners for deep linking, foreground suppression,
+ * and permission change tracking. Returns a cleanup function.
+ */
+export function registerNotificationListeners(callbacks?: {
+  onPermissionChange?: (granted: boolean) => void;
+}): () => void {
+  if (!isInitialized) return () => {};
+
+  // Deep linking on notification click
+  const handleClick = (event: { notification: { launchURL?: string; url?: string } }) => {
+    const url = event.notification?.launchURL || event.notification?.url;
+    if (url && typeof window !== 'undefined') {
+      // Only navigate if it's a relative path (same origin)
+      try {
+        const parsed = new URL(url, window.location.origin);
+        if (parsed.origin === window.location.origin) {
+          window.location.href = parsed.pathname + parsed.search;
+        }
+      } catch {
+        // If URL parsing fails, ignore
+      }
+    }
+  };
+
+  // Suppress in-app display when app is in foreground
+  const handleForeground = (event: { preventDefault?: () => void }) => {
+    // Prevent showing the notification popup if the app is visible
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      event.preventDefault?.();
+    }
+  };
+
+  // Permission change tracking
+  const handlePermissionChange = (granted: boolean) => {
+    console.log('[OneSignal] Permission changed:', granted);
+    callbacks?.onPermissionChange?.(granted);
+  };
+
+  try {
+    OneSignal.Notifications.addEventListener('click', handleClick);
+    OneSignal.Notifications.addEventListener('foregroundWillDisplay', handleForeground);
+    OneSignal.Notifications.addEventListener('permissionChange', handlePermissionChange);
+  } catch (error) {
+    console.error('[OneSignal] Failed to register listeners:', error);
+  }
+
+  return () => {
+    try {
+      OneSignal.Notifications.removeEventListener('click', handleClick);
+      OneSignal.Notifications.removeEventListener('foregroundWillDisplay', handleForeground);
+      OneSignal.Notifications.removeEventListener('permissionChange', handlePermissionChange);
+    } catch {
+      // Cleanup errors are non-critical
+    }
+  };
 }

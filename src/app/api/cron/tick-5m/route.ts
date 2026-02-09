@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WINDOWS, WindowType } from '@/lib/constants';
 import { sendWindowOpenNotification, sendWindowClosingNotification } from '@/lib/onesignal/server';
+import { validateCronAuth } from '@/lib/api-utils';
 
 // Minutes before window end to send closing notification
 const WINDOW_CLOSING_ALERT_MINUTES = 30;
@@ -35,22 +36,9 @@ const TIMEZONE_GROUPS: Record<number, string[]> = {
   [12]: ['Pacific/Auckland', 'Pacific/Fiji'],
 };
 
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.warn('CRON_SECRET not configured');
-    return false;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
-
 export async function GET(request: NextRequest) {
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = validateCronAuth(request);
+  if (!auth.valid) return auth.error;
 
   const now = new Date();
   const currentUtcHour = now.getUTCHours();
@@ -107,11 +95,11 @@ export async function GET(request: NextRequest) {
         ) {
           for (const timezone of timezones) {
             try {
-              await sendWindowClosingNotification(timezone, windowType, WINDOW_CLOSING_ALERT_MINUTES);
+              await sendWindowClosingNotification(timezone, windowType, minutesRemaining);
               triggeredClosing.push({
                 timezone,
                 window: windowType as WindowType,
-                minutesRemaining: WINDOW_CLOSING_ALERT_MINUTES,
+                minutesRemaining,
               });
             } catch (error) {
               console.error(`Failed to send CLOSING notification for ${timezone}:`, error);

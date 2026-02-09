@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { sendNotificationByTags } from '@/lib/onesignal/server';
+import { sendBattleNotification } from '@/lib/onesignal/server';
 import { validateCronAuth } from '@/lib/api-utils';
 
 export const dynamic = 'force-dynamic';
@@ -60,16 +60,14 @@ export async function GET(request: NextRequest) {
             .replace('{city_a}', battle.city_a_name)
             .replace('{city_b}', battle.city_b_name);
 
-          await sendNotificationByTags(
-            { title, message: body, url: '/battles' },
-            {
-              filters: [
-                { field: 'tag', key: 'city_id', value: battle.city_a_id },
-                { operator: 'OR' },
-                { field: 'tag', key: 'city_id', value: battle.city_b_id },
-              ],
-            }
-          );
+          await sendBattleNotification({
+            title,
+            message: body,
+            cityIds: [battle.city_a_id, battle.city_b_id],
+            battleId: battle.id,
+            phase: 'start',
+            ttl: Math.max(0, Math.round((endAt.getTime() - now.getTime()) / 1000)),
+          });
         }
 
         results.push({ battle_id: battle.id, action: 'started' });
@@ -110,16 +108,14 @@ export async function GET(request: NextRequest) {
             .replace('{winner}', winnerName)
             .replace('{score}', String(Math.round(winnerScore)));
 
-          await sendNotificationByTags(
-            { title, message: body, url: '/battles' },
-            {
-              filters: [
-                { field: 'tag', key: 'city_id', value: battle.city_a_id },
-                { operator: 'OR' },
-                { field: 'tag', key: 'city_id', value: battle.city_b_id },
-              ],
-            }
-          );
+          await sendBattleNotification({
+            title,
+            message: body,
+            cityIds: [battle.city_a_id, battle.city_b_id],
+            battleId: battle.id,
+            phase: 'end',
+            ttl: 7200,
+          });
         }
 
         results.push({ battle_id: battle.id, action: 'completed', winner: winnerName });
@@ -146,7 +142,7 @@ export async function GET(request: NextRequest) {
               city_id: agg.city_id,
               window_id: agg.window_id,
               raw_pulses: agg.total_count,
-              weighted_score: agg.total_count, // Simple scoring for now
+              weighted_score: agg.total_count,
               mood_breakdown: agg.mood_counts,
             }, {
               onConflict: 'battle_id,city_id,window_id',
@@ -169,13 +165,41 @@ export async function GET(request: NextRequest) {
           (currentTotals[battle.city_a_id] || 0) - (currentTotals[battle.city_b_id] || 0)
         );
 
-        // TODO: Track if mid notification was already sent
-        if (diff <= threshold && diff > 0) {
+        // Send mid-battle notification if close match and not already sent
+        if (
+          battle.push_schedule?.mid &&
+          diff <= threshold &&
+          diff > 0 &&
+          !battle.mid_notif_sent
+        ) {
+          const copy = battle.copy || {};
+          const title = copy.mid_title || 'Close Battle! 🔥';
+          const body = (copy.mid_body || '{city_a} and {city_b} are neck and neck!')
+            .replace('{city_a}', battle.city_a_name)
+            .replace('{city_b}', battle.city_b_name);
+
+          const midResult = await sendBattleNotification({
+            title,
+            message: body,
+            cityIds: [battle.city_a_id, battle.city_b_id],
+            battleId: battle.id,
+            phase: 'mid',
+            ttl: Math.max(0, Math.round((endAt.getTime() - now.getTime()) / 1000)),
+          });
+
+          if (midResult.success) {
+            await supabaseAdmin
+              .from('city_battles')
+              .update({ mid_notif_sent: true })
+              .eq('id', battle.id);
+          }
+
           results.push({
             battle_id: battle.id,
             action: 'score_updated',
             close_match: true,
             diff,
+            mid_notif_sent: midResult.success,
           });
         } else {
           results.push({ battle_id: battle.id, action: 'score_updated' });

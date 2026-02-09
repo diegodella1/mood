@@ -9,6 +9,7 @@ import {
   isPushEnabled,
   getInitializationStatus,
   getBrowserPermissionState,
+  registerNotificationListeners,
   type PermissionResult
 } from '@/lib/onesignal/client';
 import { useUser } from './UserProvider';
@@ -31,8 +32,10 @@ export function OneSignalProvider({ children }: { children: ReactNode }) {
   const [initError, setInitError] = useState<string | null>(null);
   const [browserPermission, setBrowserPermission] = useState<'granted' | 'denied' | 'default' | 'unsupported'>('default');
 
-  // Initialize OneSignal
+  // Initialize OneSignal and register listeners
   useEffect(() => {
+    let cleanupListeners: (() => void) | undefined;
+
     const init = async () => {
       await initOneSignal();
       const status = getInitializationStatus();
@@ -45,12 +48,26 @@ export function OneSignalProvider({ children }: { children: ReactNode }) {
       // Check subscription status
       const subscribed = await isPushEnabled();
       setIsSubscribed(subscribed);
+
+      // Register event listeners
+      if (status.initialized) {
+        cleanupListeners = registerNotificationListeners({
+          onPermissionChange: (granted) => {
+            setIsSubscribed(granted);
+            setBrowserPermission(getBrowserPermissionState());
+          },
+        });
+      }
     };
 
     init();
+
+    return () => {
+      cleanupListeners?.();
+    };
   }, []);
 
-  // Set external user ID when user is available
+  // Set external user ID and tags when user is available
   useEffect(() => {
     if (isInitialized && user?.id) {
       setExternalUserId(user.id);
@@ -68,9 +85,14 @@ export function OneSignalProvider({ children }: { children: ReactNode }) {
         tags.city_id = user.cityId;
       }
 
+      // Extra segmentation tags
+      if (user.streakDays !== undefined) {
+        tags.streak_days = String(user.streakDays);
+      }
+
       setUserTags(tags);
     }
-  }, [isInitialized, user?.id, user?.timezone, user?.countryCode, user?.cityId]);
+  }, [isInitialized, user?.id, user?.timezone, user?.countryCode, user?.cityId, user?.streakDays]);
 
   const requestPermission = useCallback(async (): Promise<PermissionResult> => {
     const result = await requestPushPermission();

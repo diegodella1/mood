@@ -141,6 +141,9 @@ export async function GET(request: NextRequest) {
           title: `City Mood Flip! ${moodEmoji}`,
           message: `Your city just shifted to ${moodEmoji}. See how others are feeling.`,
           url: '/results',
+          ttl: 7200,
+          web_push_topic: `city-flip-${flip.city_id}`,
+          idempotency_key: `city-flip-${flip.city_id}-${flip.window_id}`,
         },
         {
           filters: [{ field: 'tag', key: 'city_id', value: flip.city_id }],

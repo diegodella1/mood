@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Process only the most recent shift if frequency is per_window
+    // If per_day, only send the most recent shift; if per_window, send all detected
     const shiftsToProcess = frequency === 'per_day'
       ? shiftsDetected.slice(-1)
       : shiftsDetected;
@@ -123,6 +123,9 @@ export async function GET(request: NextRequest) {
         title: `Global Mood Shift ${newEmoji}`,
         message: `The world just shifted from ${prevEmoji} to ${newEmoji}. Join the pulse!`,
         url: '/results',
+        ttl: 7200,
+        web_push_topic: 'global-shift',
+        idempotency_key: `global-shift-${shift.window_id}`,
       });
 
       // Mark as sent

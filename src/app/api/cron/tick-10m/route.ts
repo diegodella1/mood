@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { sendNotificationByTags } from '@/lib/onesignal/server';
 import { normalizeToEmoji, getEmojiLabel } from '@/lib/constants';
+import { validateCronAuth } from '@/lib/api-utils';
 
 interface CityAggregate {
   window_id: string;
@@ -9,18 +10,6 @@ interface CityAggregate {
   mood_counts: Record<string, number>;
   total_count: number;
   updated_at: string;
-}
-
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.warn('CRON_SECRET not configured');
-    return false;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
 }
 
 function getDominantMood(moodCounts: Record<string, number>): string {
@@ -38,9 +27,8 @@ function getDominantMood(moodCounts: Record<string, number>): string {
 }
 
 export async function GET(request: NextRequest) {
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = validateCronAuth(request);
+  if (!auth.valid) return auth.error;
 
   try {
     // Get recent city aggregates that have changed
@@ -79,6 +67,9 @@ export async function GET(request: NextRequest) {
             title: `${cityAgg.city_id} is feeling ${moodEmoji}`,
             message: `${moodPercentage}% of people in your city are ${moodLabel} right now`,
             url: '/results',
+            ttl: 3600,
+            web_push_topic: `city-trend-${cityAgg.city_id}`,
+            idempotency_key: `city-trend-${cityAgg.city_id}-${cityAgg.window_id}`,
           },
           {
             filters: [

@@ -4,6 +4,7 @@ import {
   sendCustomWindowOpenNotification,
   sendCustomWindowClosingNotification,
 } from '@/lib/onesignal/server';
+import { validateCronAuth } from '@/lib/api-utils';
 import type { CustomWindow, RecurrenceRule } from '@/lib/supabase/types';
 
 // Dedupe key prefix for notification tracking
@@ -38,18 +39,6 @@ const TIMEZONE_GROUPS: Record<number, string[]> = {
   [11]: ['Pacific/Noumea'],
   [12]: ['Pacific/Auckland', 'Pacific/Fiji'],
 };
-
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.warn('CRON_SECRET not configured');
-    return false;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
 
 /**
  * Check if a recurring window should be active on a given date
@@ -100,9 +89,8 @@ function getLocalHour(utcHour: number, offsetHours: number): number {
 }
 
 export async function GET(request: NextRequest) {
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = validateCronAuth(request);
+  if (!auth.valid) return auth.error;
 
   const now = new Date();
   const currentUtcHour = now.getUTCHours();

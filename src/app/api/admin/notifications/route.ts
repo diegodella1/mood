@@ -10,6 +10,7 @@ import {
 } from '@/lib/onesignal/server';
 
 interface TagFilter {
+  field: 'tag';
   key: string;
   value: string;
   relation: string;
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
         const countryFilters: (TagFilter | { operator: 'OR' })[] = [];
         audience_payload.country_codes.forEach((code: string, index: number) => {
           if (index > 0) countryFilters.push({ operator: 'OR' });
-          countryFilters.push({ key: 'country_code', value: code, relation: '=' });
+          countryFilters.push({ field: 'tag', key: 'country', value: code, relation: '=' });
         });
         result = await sendNotificationByTags(notificationOptions, { filters: countryFilters as never[] });
         break;
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
         const cityFilters: (TagFilter | { operator: 'OR' })[] = [];
         audience_payload.city_ids.forEach((id: string, index: number) => {
           if (index > 0) cityFilters.push({ operator: 'OR' });
-          cityFilters.push({ key: 'city_id', value: id, relation: '=' });
+          cityFilters.push({ field: 'tag', key: 'city_id', value: id, relation: '=' });
         });
         result = await sendNotificationByTags(notificationOptions, { filters: cityFilters as never[] });
         break;

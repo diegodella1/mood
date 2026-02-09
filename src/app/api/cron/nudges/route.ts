@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { sendNotificationToUsers, sendWindowReminderToUser } from '@/lib/onesignal/server';
+import { sendNotificationToUsers, sendWindowReminderToUser, isInQuietHours } from '@/lib/onesignal/server';
 import { getActiveWindow, generateWindowId, getCurrentDateInTimezone, getWindowRemainingTime } from '@/lib/timezone';
 import { validateCronAuth } from '@/lib/api-utils';
 import { WINDOWS } from '@/lib/constants';
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     const dedupeWindowMinutes = nudgesConfig.dedupe_window_minutes || 180;
+    const dailyCap = nudgesConfig.daily_cap || 5;
 
     // Get enabled nudge rules
     const { data: rules } = await supabaseAdmin
@@ -96,6 +97,17 @@ export async function GET(request: NextRequest) {
 
           if (recentNudges && recentNudges.length > 0) continue;
 
+          // Skip if in quiet hours
+          if (isInQuietHours(tz)) continue;
+
+          // Check daily cap
+          const { data: capUser } = await supabaseAdmin
+            .from('users')
+            .select('notifications_today')
+            .eq('id', user.id)
+            .single();
+          if ((capUser?.notifications_today ?? 0) >= dailyCap) continue;
+
           usersToRemind.push({
             userId: user.id,
             windowId,
@@ -150,7 +162,7 @@ export async function GET(request: NextRequest) {
         const usersToNudge: Array<{ userId: string; windowId: string }> = [];
 
         for (const user of users || []) {
-          const activeWindow = getActiveWindow(user.timezone || 'UTC');
+          const activeWindow = getActiveWindow(user.timezone || 'UTC', WINDOWS);
           if (!activeWindow) continue;
 
           const tz = user.timezone || 'UTC';
@@ -215,6 +227,17 @@ export async function GET(request: NextRequest) {
 
           if ((windowNudges?.length || 0) >= (rule.max_per_window || 1)) continue;
 
+          // Skip if in quiet hours
+          if (isInQuietHours(tz)) continue;
+
+          // Check daily cap
+          const { data: capUser } = await supabaseAdmin
+            .from('users')
+            .select('notifications_today')
+            .eq('id', user.id)
+            .single();
+          if ((capUser?.notifications_today ?? 0) >= dailyCap) continue;
+
           usersToNudge.push({ userId: user.id, windowId });
         }
 
@@ -240,7 +263,13 @@ export async function GET(request: NextRequest) {
           const userIds = batch.map((u) => u.userId);
 
           const result = await sendNotificationToUsers(
-            { title, message: body, url: '/' },
+            {
+              title,
+              message: body,
+              url: '/',
+              ttl: 3600,
+              web_push_topic: `nudge-${rule.id}`,
+            },
             userIds
           );
 

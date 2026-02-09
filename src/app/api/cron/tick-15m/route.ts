@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { sendNotificationToAll, sendNotificationByTags, sendNotificationToUsers } from '@/lib/onesignal/server';
+import { validateCronAuth } from '@/lib/api-utils';
 
 interface NotificationTemplate {
   id: string;
@@ -19,24 +20,63 @@ interface NotificationJob {
   notification_templates: NotificationTemplate | null;
 }
 
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.warn('CRON_SECRET not configured');
-    return false;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
-
 export async function GET(request: NextRequest) {
-  if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = validateCronAuth(request);
+  if (!auth.valid) return auth.error;
 
   try {
+    // ── Process notification_schedules (admin scheduled notifs) ──
+    const nowISO = new Date().toISOString();
+    const { data: schedules } = await supabaseAdmin
+      .from('notification_schedules')
+      .select('*')
+      .eq('status', 'pending')
+      .lte('scheduled_for', nowISO)
+      .limit(20);
+
+    let schedulesProcessed = 0;
+    let schedulesFailed = 0;
+
+    for (const sched of schedules || []) {
+      try {
+        const opts = {
+          title: sched.title as string,
+          message: sched.body as string,
+          url: (sched.url as string) || '/',
+        };
+
+        let result: { success: boolean; error?: string };
+
+        if (sched.audience_type === 'all') {
+          result = await sendNotificationToAll(opts);
+        } else if (sched.audience_type === 'tags' && sched.audience_payload?.filters) {
+          result = await sendNotificationByTags(opts, { filters: sched.audience_payload.filters });
+        } else if (sched.audience_type === 'users' && sched.audience_payload?.user_ids) {
+          result = await sendNotificationToUsers(opts, sched.audience_payload.user_ids as string[]);
+        } else {
+          result = { success: false, error: `Unknown audience: ${sched.audience_type}` };
+        }
+
+        await supabaseAdmin
+          .from('notification_schedules')
+          .update({
+            status: result.success ? 'sent' : 'failed',
+            processed_at: new Date().toISOString(),
+          })
+          .eq('id', sched.id);
+
+        if (result.success) schedulesProcessed++;
+        else schedulesFailed++;
+      } catch {
+        await supabaseAdmin
+          .from('notification_schedules')
+          .update({ status: 'failed', processed_at: new Date().toISOString() })
+          .eq('id', sched.id);
+        schedulesFailed++;
+      }
+    }
+
+    // ── Process notification_jobs queue ──
     // Get pending notification jobs
     const { data: jobs } = await supabaseAdmin
       .from('notification_jobs')
@@ -111,9 +151,11 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: `Processed ${processed} jobs, ${failed} failed`,
+      message: `Processed ${processed} jobs, ${failed} failed. Schedules: ${schedulesProcessed} sent, ${schedulesFailed} failed.`,
       processed,
       failed,
+      schedulesProcessed,
+      schedulesFailed,
     });
   } catch (error) {
     console.error('Notification queue cron error:', error);

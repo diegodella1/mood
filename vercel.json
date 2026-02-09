@@ -31,6 +31,22 @@
     {
       "path": "/api/cron/friend-streaks",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/battles",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/flips",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/shifts",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/escalation",
+      "schedule": "0 12 * * *"
     }
   ]
 }
