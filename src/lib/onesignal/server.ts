@@ -1,3 +1,5 @@
+import { supabaseAdmin } from '@/lib/supabase/server';
+
 const ONESIGNAL_APP_ID = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID!;
 const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_REST_API_KEY!;
 
@@ -425,16 +427,6 @@ export async function sendNotificationWithGuardrails(
   options: NotificationOptions,
   userId: string,
   timezone: string,
-  supabase: {
-    from: (table: string) => {
-      select: (cols: string) => {
-        eq: (col: string, val: string) => {
-          single: () => Promise<{ data: Record<string, unknown> | null }>;
-        };
-      };
-    };
-    rpc: (fn: string, params: Record<string, unknown>) => Promise<{ error: unknown }>;
-  },
   dailyCap = DEFAULT_DAILY_CAP,
 ): Promise<NotificationResult> {
   // 1. Check quiet hours
@@ -443,7 +435,7 @@ export async function sendNotificationWithGuardrails(
   }
 
   // 2. Check daily cap
-  const { data: user } = await supabase
+  const { data: user } = await supabaseAdmin
     .from('users')
     .select('notifications_today')
     .eq('id', userId)
@@ -459,7 +451,7 @@ export async function sendNotificationWithGuardrails(
 
   // 4. Increment counter
   if (result.success) {
-    await supabase.rpc('increment_notifications_today', { p_user_id: userId });
+    await supabaseAdmin.rpc('increment_notifications_today', { p_user_id: userId });
   }
 
   return result;

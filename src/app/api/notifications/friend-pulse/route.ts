@@ -37,11 +37,11 @@ export async function POST(request: NextRequest) {
     // Filter followers with push enabled — use external_id (user.id) instead of player_ids
     const followerIds = followers
       .filter((f) => {
-        const follower = f.follower as { id?: string; push_opt_in?: boolean } | null;
+        const follower = f.follower as unknown as { id?: string; push_opt_in?: boolean } | null;
         return follower?.push_opt_in && follower?.id;
       })
       .map((f) => {
-        const follower = f.follower as { id: string };
+        const follower = f.follower as unknown as { id: string };
         return follower.id;
       });
 

@@ -88,10 +88,13 @@ export async function POST(request: NextRequest) {
       p_amount: pulseXpAmount,
       p_source: isFirstPulse ? 'first_pulse' : 'pulse',
       p_metadata: { window_id: data.windowId, mood: data.mood, ...(isFirstPulse ? { bonus: '2x' } : {}) },
-    }).catch((err: unknown) => {
-      console.error('XP award error:', err);
-      return { data: null };
-    });
+    }).then(
+      (res) => res,
+      (err: unknown) => {
+        console.error('XP award error:', err);
+        return { data: null, error: null };
+      },
+    );
 
     // Update last_pulse_date for escalation tracking
     supabaseAdmin

@@ -129,7 +129,6 @@ export async function GET(request: NextRequest) {
         },
         user.id,
         user.timezone || 'UTC',
-        supabaseAdmin,
       );
 
       if (result.success) {
