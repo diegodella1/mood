@@ -90,12 +90,47 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(10);
 
+    // Get referral tiers
+    const { data: tiers } = await supabaseAdmin
+      .from('referral_tiers')
+      .select('*')
+      .order('tier', { ascending: true });
+
+    const referralCount = user.referral_count || 0;
+
+    // Calculate current tier and next tier
+    const allTiers = tiers || [];
+    const currentTier = allTiers.filter((t) => referralCount >= t.referrals_required).pop() || null;
+    const nextTier = allTiers.find((t) => referralCount < t.referrals_required) || null;
+
     return NextResponse.json({
       referralCode: user.referral_code,
-      referralCount: user.referral_count || 0,
+      referralCount,
       wasReferred: !!user.referred_by,
       displayName: user.display_name,
       recentReferrals: referrals?.length || 0,
+      // Tier system
+      currentTier: currentTier ? {
+        tier: currentTier.tier,
+        title: currentTier.title,
+        reward_type: currentTier.reward_type,
+      } : null,
+      nextTier: nextTier ? {
+        tier: nextTier.tier,
+        title: nextTier.title,
+        description: nextTier.description,
+        referrals_required: nextTier.referrals_required,
+        referrals_remaining: nextTier.referrals_required - referralCount,
+        reward_type: nextTier.reward_type,
+        reward_value: nextTier.reward_value,
+      } : null,
+      tiers: allTiers.map((t) => ({
+        tier: t.tier,
+        title: t.title,
+        referrals_required: t.referrals_required,
+        reward_type: t.reward_type,
+        unlocked: referralCount >= t.referrals_required,
+      })),
     });
   } catch (error) {
     console.error('Referral info error:', error);

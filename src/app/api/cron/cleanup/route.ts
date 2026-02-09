@@ -22,7 +22,26 @@ export async function GET(request: NextRequest) {
     const { error: shieldsError } = await supabaseAdmin.rpc('grant_streak_shields');
     results.shields = shieldsError ? { error: shieldsError.message } : { success: true };
 
-    // 3. Cleanup old streak history (older than 30 days and not rescued)
+    // 3. Reset daily notification counter at midnight UTC + generate daily challenges
+    const currentHour = new Date().getUTCHours();
+    if (currentHour === 0) {
+      const { error: resetError } = await supabaseAdmin
+        .from('users')
+        .update({ notifications_today: 0 })
+        .gt('notifications_today', 0);
+      results.notificationReset = resetError
+        ? { error: resetError.message }
+        : { success: true };
+
+      // Generate daily challenges for today
+      const { data: challengeCount, error: challengeError } = await supabaseAdmin
+        .rpc('generate_daily_challenges');
+      results.dailyChallenges = challengeError
+        ? { error: challengeError.message }
+        : { generated: challengeCount ?? 0 };
+    }
+
+    // 4. Cleanup old streak history (older than 30 days and not rescued)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 

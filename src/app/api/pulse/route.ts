@@ -76,6 +76,32 @@ export async function POST(request: NextRequest) {
     // Result is an array with one row from the function
     const pulseResult = Array.isArray(result) ? result[0] : result;
 
+    // Award XP and update last_pulse_date (non-blocking for response but important)
+    const todayDate = date; // from parseWindowId
+
+    // Check if this is the user's first pulse ever (2x XP bonus)
+    const isFirstPulse = pulseResult?.new_streak === 1;
+    const pulseXpAmount = isFirstPulse ? BASE_PULSE_XP * 2 : BASE_PULSE_XP;
+
+    const xpPromise = supabaseAdmin.rpc('award_xp', {
+      p_user_id: data.userId,
+      p_amount: pulseXpAmount,
+      p_source: isFirstPulse ? 'first_pulse' : 'pulse',
+      p_metadata: { window_id: data.windowId, mood: data.mood, ...(isFirstPulse ? { bonus: '2x' } : {}) },
+    }).catch((err: unknown) => {
+      console.error('XP award error:', err);
+      return { data: null };
+    });
+
+    // Update last_pulse_date for escalation tracking
+    supabaseAdmin
+      .from('users')
+      .update({ last_pulse_date: todayDate, days_inactive: 0, escalation_level: 0 })
+      .eq('id', data.userId)
+      .then(({ error: updateErr }) => {
+        if (updateErr) console.error('last_pulse_date update error:', updateErr);
+      });
+
     // Check and process custom window participation
     let customWindowBonus: {
       xpMultiplier: number;
@@ -151,10 +177,11 @@ export async function POST(request: NextRequest) {
     }).catch(() => {}); // Silent fail
 
     // Await the important ones with proper error handling
-    const [luckyDropResult, friendStreaksResult, achievementsResult] = await Promise.all([
+    const [luckyDropResult, friendStreaksResult, achievementsResult, xpResultData] = await Promise.all([
       Promise.resolve(luckyDropPromise).then(({ data: drop }) => drop).catch(() => null),
       Promise.resolve(friendStreaksPromise).then(({ data: count }) => count || 0).catch(() => 0),
       Promise.resolve(achievementsPromise).then(({ data: result }) => result?.earned || []).catch(() => []),
+      Promise.resolve(xpPromise).then(({ data: xp }) => (Array.isArray(xp) ? xp[0] : xp)).catch(() => null),
     ]);
 
     const luckyDrop = luckyDropResult;
@@ -178,6 +205,14 @@ export async function POST(request: NextRequest) {
       newAchievements: achievements,
       // Custom window bonus info
       customWindowBonus,
+      // XP info
+      xp: xpResultData ? {
+        earned: pulseXpAmount + (customWindowBonus?.xpEarned ? customWindowBonus.xpEarned - BASE_PULSE_XP : 0),
+        first_pulse_bonus: isFirstPulse,
+        new_total: xpResultData.new_xp,
+        level: xpResultData.new_level,
+        leveled_up: xpResultData.leveled_up,
+      } : null,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
