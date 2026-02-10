@@ -1,7 +1,7 @@
 {
   "name": "Global Pulse",
   "short_name": "Pulse",
-  "description": "Share your mood with the world. 3 times a day, see how the planet is feeling.",
+  "description": "A real-time mood tracker game. Pick an emoji 3 times a day, build streaks, climb leaderboards, and see how the world feels.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

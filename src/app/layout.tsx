@@ -29,18 +29,46 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Global Pulse',
-  description: 'Share your mood with the world. 3 times a day, see how the planet is feeling.',
+  metadataBase: new URL('https://globalmood.vercel.app'),
+  title: {
+    default: 'Global Pulse — How Is the World Feeling?',
+    template: '%s | Global Pulse',
+  },
+  description:
+    'A real-time mood tracker game. Pick an emoji 3 times a day, build streaks, climb leaderboards, and see how the world feels right now.',
+  keywords: [
+    'mood tracker',
+    'how is the world feeling',
+    'daily emoji check-in',
+    'mood tracker game',
+    'global mood map',
+    'real-time mood',
+    'streak game',
+    'casual game',
+    'emoji game',
+  ],
+  category: 'games',
   manifest: '/manifest.json',
+  alternates: { canonical: '/' },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Global Pulse',
   },
   openGraph: {
-    title: 'Global Pulse',
-    description: 'Share your mood with the world',
+    title: 'Global Pulse — How Is the World Feeling?',
+    description:
+      'Pick an emoji, build streaks, and see how the planet feels in real time.',
+    url: '/',
+    siteName: 'Global Pulse',
+    locale: 'en_US',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Global Pulse — How Is the World Feeling?',
+    description:
+      'Pick an emoji, build streaks, and see how the planet feels in real time.',
   },
 };
 
@@ -61,6 +89,22 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebApplication',
+              name: 'Global Pulse',
+              url: 'https://globalmood.vercel.app',
+              description:
+                'A real-time mood tracker game. Pick an emoji 3 times a day, build streaks, climb leaderboards, and see how the world feels right now.',
+              applicationCategory: 'GameApplication',
+              operatingSystem: 'Any',
+              offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+            }),
+          }}
+        />
       </head>
       <body
         className={`${sora.variable} ${plusJakarta.variable} ${jetbrainsMono.variable} antialiased min-h-screen`}
