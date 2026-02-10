@@ -139,6 +139,36 @@ export function generateWindowId(date: string, windowType: string, timezone: str
 }
 
 /**
+ * Get the most recently completed window's ID
+ * Used as fallback when no window is currently active
+ */
+export function getLastCompletedWindowId(timezone: string, windows: WindowsConfig = WINDOWS): string {
+  const hour = getCurrentHourInTimezone(timezone);
+  const date = getCurrentDateInTimezone(timezone);
+
+  // Sort windows by end time descending
+  const sorted = Object.entries(windows)
+    .map(([type, { start, end }]) => ({ type, start, end }))
+    .sort((a, b) => b.end - a.end);
+
+  // Find the most recent window that already ended
+  for (const w of sorted) {
+    if (hour >= w.end) {
+      return generateWindowId(date, w.type, timezone);
+    }
+  }
+
+  // All windows are ahead of current hour (e.g., 0-8am)
+  // Use last window from yesterday
+  const yesterday = new Date();
+  const zonedYesterday = toZonedTime(yesterday, timezone);
+  zonedYesterday.setDate(zonedYesterday.getDate() - 1);
+  const yesterdayStr = format(zonedYesterday, 'yyyy-MM-dd');
+  const lastWindow = sorted[0]; // highest end time = last window of day
+  return generateWindowId(yesterdayStr, lastWindow.type, timezone);
+}
+
+/**
  * Parse a window ID back to its components
  * Validates the format and returns defaults for invalid inputs
  */

@@ -3,6 +3,7 @@
 import { memo, Suspense, lazy } from 'react';
 import { motion } from 'framer-motion';
 import { normalizeToEmoji, getEmojiLabel } from '@/lib/constants';
+import { getLastCompletedWindowId } from '@/lib/timezone';
 import { useAggregates } from '@/hooks/useAggregates';
 import { useActiveWindow } from '@/hooks/useActiveWindow';
 import { useUser } from '@/providers/UserProvider';
@@ -17,7 +18,12 @@ const springBouncy = { type: 'spring' as const, damping: 15, stiffness: 120 };
 
 export function ResultsView() {
   const { user } = useUser();
-  const { windowId } = useActiveWindow();
+  const { windowId: activeWindowId } = useActiveWindow();
+
+  // Fallback to last completed window when between windows
+  const windowId = activeWindowId
+    || (user?.timezone ? getLastCompletedWindowId(user.timezone) : null);
+
   const { global, city, isLoading, error } = useAggregates(windowId, user?.cityId);
 
   if (isLoading) {
@@ -48,56 +54,50 @@ export function ResultsView() {
     );
   }
 
-  if (!global) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center p-8"
-      >
-        <div className="glass-card-glow p-8">
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="text-5xl mb-4"
-          >
-            ✨
-          </motion.div>
-          <p className="font-display font-medium text-[var(--color-text-primary)]">
-            No results yet for this window
-          </p>
-          <p className="text-[var(--color-text-muted)] text-sm mt-2">
-            Be the first to share your mood!
-          </p>
-        </div>
-      </motion.div>
-    );
-  }
-
   // Sort moods by count (descending) and take top 10
-  const sortedMoods = Object.entries(global.moodCounts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 10);
+  const sortedMoods = global
+    ? Object.entries(global.moodCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+    : [];
 
   return (
     <div className="p-6 space-y-8 max-w-2xl mx-auto">
       {/* Global Pulse */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={springSmooth}
-      >
-        <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-3">
-          <span className="text-2xl">🌍</span>
-          <span>Global Pulse</span>
-        </h2>
-        <PulseCard
-          title="The World"
-          moodCounts={global.moodCounts}
-          totalCount={global.totalCount}
-          dominantMood={global.dominantMood}
-        />
-      </motion.section>
+      {global ? (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={springSmooth}
+        >
+          <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-3">
+            <span className="text-2xl">🌍</span>
+            <span>Global Pulse</span>
+          </h2>
+          <PulseCard
+            title="The World"
+            moodCounts={global.moodCounts}
+            totalCount={global.totalCount}
+            dominantMood={global.dominantMood}
+          />
+        </motion.section>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
+        >
+          <div className="glass-card-glow p-6">
+            <p className="text-5xl mb-3">✨</p>
+            <p className="font-display font-medium text-[var(--color-text-primary)]">
+              No results yet for this window
+            </p>
+            <p className="text-[var(--color-text-muted)] text-sm mt-1">
+              Be the first to share your mood!
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* City Pulse */}
       {city ? (
@@ -143,40 +143,39 @@ export function ResultsView() {
       </motion.section>
 
       {/* Mood Breakdown */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...springSmooth, delay: 0.2 }}
-      >
-        <h3 className="font-display text-lg font-semibold text-[var(--color-text-primary)] mb-5">
-          Mood Breakdown
-        </h3>
-        <div className="glass-card p-5 space-y-4">
-          {sortedMoods.map(([mood, count], index) => {
-            const percentage = global.totalCount > 0 ? (count / global.totalCount) * 100 : 0;
-            const emoji = normalizeToEmoji(mood);
-            const isTop = index === 0;
+      {global && sortedMoods.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...springSmooth, delay: 0.2 }}
+        >
+          <h3 className="font-display text-lg font-semibold text-[var(--color-text-primary)] mb-5">
+            Mood Breakdown
+          </h3>
+          <div className="glass-card p-5 space-y-4">
+            {sortedMoods.map(([mood, count], index) => {
+              const percentage = global.totalCount > 0 ? (count / global.totalCount) * 100 : 0;
+              const emoji = normalizeToEmoji(mood);
+              const isTop = index === 0;
 
-            return (
-              <MoodBar
-                key={mood}
-                emoji={emoji}
-                label={getEmojiLabel(mood)}
-                count={count}
-                percentage={percentage}
-                isTop={isTop}
-                index={index}
-              />
-            );
-          })}
-        </div>
-        {sortedMoods.length === 0 ? (
-          <p className="text-[var(--color-text-muted)] text-sm">No mood data yet</p>
-        ) : null}
-      </motion.section>
+              return (
+                <MoodBar
+                  key={mood}
+                  emoji={emoji}
+                  label={getEmojiLabel(mood)}
+                  count={count}
+                  percentage={percentage}
+                  isTop={isTop}
+                  index={index}
+                />
+              );
+            })}
+          </div>
+        </motion.section>
+      )}
 
       {/* Top Cities */}
-      {global.topCities.length > 0 ? (
+      {global && global.topCities.length > 0 ? (
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
