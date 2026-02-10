@@ -20,6 +20,7 @@ import { LuckyDropNotification } from '@/components/LuckyDropNotification';
 import { SecretAchievementUnlocked } from '@/components/SecretAchievementUnlocked';
 import { UserSearch } from '@/components/UserSearch';
 import { CustomWindowBanner } from '@/components/CustomWindowBanner';
+import { LocationPrompt } from '@/components/LocationPrompt';
 import { useUser } from '@/providers/UserProvider';
 import { useOneSignal } from '@/providers/OneSignalProvider';
 import { useActiveWindow } from '@/hooks/useActiveWindow';
@@ -189,6 +190,9 @@ export default function HomePage() {
 
       {/* Live Counter */}
       <LivePulseCounter />
+
+      {/* Location Prompt (no city set or moved) */}
+      <LocationPrompt />
 
       {/* Custom Window Banner */}
       {isCustomWindow && customWindow && remainingTime && (
