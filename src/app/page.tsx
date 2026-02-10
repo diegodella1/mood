@@ -25,6 +25,7 @@ import { useOneSignal } from '@/providers/OneSignalProvider';
 import { useActiveWindow } from '@/hooks/useActiveWindow';
 import { usePulse } from '@/hooks/usePulse';
 import { useReferral } from '@/hooks/useReferral';
+import { getUserVisibility } from '@/lib/progressive-disclosure';
 import type { BadgeDefinition } from '@/lib/badges';
 
 const ONBOARDING_STORAGE_KEY = 'global_pulse_onboarding_complete';
@@ -43,6 +44,7 @@ export default function HomePage() {
   const [windowsCompletedToday, setWindowsCompletedToday] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showUserSearch, setShowUserSearch] = useState(false);
+  const visibility = getUserVisibility(user?.createdAt ?? null);
   const [secretAchievement, setSecretAchievement] = useState<{
     id: string;
     name: string;
@@ -162,11 +164,19 @@ export default function HomePage() {
               Results
             </Link>
             <Link
-              href="/leaderboard"
+              href="/history"
               className="px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg hover:bg-[var(--surface-glass-light)]"
             >
-              Ranks
+              History
             </Link>
+            {visibility.showLeaderboard && (
+              <Link
+                href="/leaderboard"
+                className="px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg hover:bg-[var(--surface-glass-light)]"
+              >
+                Ranks
+              </Link>
+            )}
             <Link
               href="/profile"
               className="px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors rounded-lg hover:bg-[var(--surface-glass-light)]"
@@ -211,8 +221,8 @@ export default function HomePage() {
         className="px-4 pb-6 space-y-4"
       >
         <div className="max-w-lg mx-auto space-y-4">
-          {/* Aura Progress - Always Visible */}
-          {user && (
+          {/* Aura Progress — visible after day 7 */}
+          {visibility.showAuraProgress && user && (
             <AuraProgress
               streakDays={user.streakDays || 0}
               aura={user.aura}
@@ -224,43 +234,50 @@ export default function HomePage() {
             <StreakIndicator hasSubmittedToday={hasSubmittedThisWindow || windowsCompletedToday > 0} />
           </div>
 
-          {/* Daily Progress with Goal-Gradient */}
-          <div data-tour="daily-progress">
-            <DailyProgress
-              windowsCompleted={windowsCompletedToday}
-              currentWindow={currentWindow}
-              hasSubmittedCurrentWindow={hasSubmittedThisWindow}
-            />
-          </div>
+          {/* Daily Progress — visible after day 7 */}
+          {visibility.showDailyProgress && (
+            <div data-tour="daily-progress">
+              <DailyProgress
+                windowsCompleted={windowsCompletedToday}
+                currentWindow={currentWindow}
+                hasSubmittedCurrentWindow={hasSubmittedThisWindow}
+              />
+            </div>
+          )}
 
           {/* Live Activity for Social Proof */}
           {isActive && windowId && (
             <LiveActivity windowId={windowId} />
           )}
 
-          {/* Friend Streaks (Snapchat-style) */}
-          {user && <FriendStreaks />}
+          {/* Friend features — visible after day 3 */}
+          {visibility.showFriendFeatures && (
+            <>
+              {/* Friend Streaks (Snapchat-style) */}
+              {user && <FriendStreaks />}
 
-          {/* Friends Feed */}
-          {user && <FriendsFeed />}
+              {/* Friends Feed */}
+              {user && <FriendsFeed />}
 
-          {/* Find Friends + Invite CTA */}
-          {user && (
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowUserSearch(true)}
-                data-tour="find-friends"
-                className="flex-1 glass-card-subtle p-4 flex items-center justify-center gap-2 hover:bg-[var(--surface-glass)] transition-all rounded-xl"
-              >
-                <svg className="w-5 h-5 text-[var(--color-aurora-cyan)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-                <span className="text-sm font-medium text-[var(--color-text-primary)]">Find Friends</span>
-              </button>
-              <div className="flex-1" data-tour="invite">
-                <InviteFriendsButton className="w-full h-full" />
-              </div>
-            </div>
+              {/* Find Friends + Invite CTA */}
+              {user && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowUserSearch(true)}
+                    data-tour="find-friends"
+                    className="flex-1 glass-card-subtle p-4 flex items-center justify-center gap-2 hover:bg-[var(--surface-glass)] transition-all rounded-xl"
+                  >
+                    <svg className="w-5 h-5 text-[var(--color-aurora-cyan)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    <span className="text-sm font-medium text-[var(--color-text-primary)]">Find Friends</span>
+                  </button>
+                  <div className="flex-1" data-tour="invite">
+                    <InviteFriendsButton className="w-full h-full" />
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </motion.div>

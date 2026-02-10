@@ -21,16 +21,24 @@ export function FriendsFeed() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [friendsPulsedToday, setFriendsPulsedToday] = useState(0);
 
   useEffect(() => {
     if (!user?.id) return;
 
     const fetchFeed = async () => {
       try {
-        const res = await fetch(`/api/friends/feed?userId=${user.id}`);
-        if (res.ok) {
-          const data = await res.json();
+        const [feedRes, countRes] = await Promise.all([
+          fetch(`/api/friends/feed?userId=${user.id}`),
+          fetch(`/api/friends/pulsed-today?userId=${user.id}`),
+        ]);
+        if (feedRes.ok) {
+          const data = await feedRes.json();
           setFeed(data.feed || []);
+        }
+        if (countRes.ok) {
+          const data = await countRes.json();
+          setFriendsPulsedToday(data.count || 0);
         }
       } catch (error) {
         console.error('Failed to fetch feed:', error);
@@ -40,7 +48,7 @@ export function FriendsFeed() {
     };
 
     fetchFeed();
-    const interval = setInterval(fetchFeed, 30000); // Every 30 seconds
+    const interval = setInterval(fetchFeed, 30000);
 
     return () => clearInterval(interval);
   }, [user?.id]);
@@ -61,10 +69,28 @@ export function FriendsFeed() {
 
   if (feed.length === 0) {
     return (
-      <div className="glass-card-subtle p-4 text-center">
-        <p className="text-sm text-[var(--color-text-muted)]">
-          Follow friends to see their vibes here
+      <div className="glass-card-subtle p-6 text-center">
+        <p className="text-2xl mb-2">👋</p>
+        <p className="text-sm font-medium text-[var(--color-text-primary)] mb-1">
+          No friends yet
         </p>
+        <p className="text-xs text-[var(--color-text-muted)] mb-3">
+          Add friends to see their vibes and compare moods
+        </p>
+        <button
+          onClick={() => {
+            if (navigator.share) {
+              navigator.share({
+                title: 'Join me on Global Pulse',
+                text: 'Share how you feel and see how the world feels back!',
+                url: window.location.origin,
+              }).catch(() => {});
+            }
+          }}
+          className="px-4 py-2 text-xs font-medium rounded-xl bg-[var(--color-aurora-cyan)]/20 text-[var(--color-aurora-cyan)] border border-[var(--color-aurora-cyan)]/30 hover:bg-[var(--color-aurora-cyan)]/30 transition-colors"
+        >
+          Invite Friends
+        </button>
       </div>
     );
   }
@@ -73,10 +99,15 @@ export function FriendsFeed() {
 
   return (
     <div className="glass-card-subtle overflow-hidden">
-      <div className="p-3 border-b border-[var(--surface-border)]">
+      <div className="p-3 border-b border-[var(--surface-border)] flex items-center justify-between">
         <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
           Friends Activity
         </h3>
+        {friendsPulsedToday > 0 && (
+          <span className="text-xs text-[var(--color-aurora-cyan)] font-medium">
+            {friendsPulsedToday} pulsed today
+          </span>
+        )}
       </div>
 
       <div className="divide-y divide-[var(--surface-border)]">
@@ -103,6 +134,11 @@ export function FriendsFeed() {
                     {getActivityText(item.activityType, item.metadata)}
                   </span>
                 </p>
+                {typeof item.metadata?.note === 'string' && item.metadata.note && (
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 line-clamp-2">
+                    {item.metadata.note as string}
+                  </p>
+                )}
                 <p className="text-xs text-[var(--color-text-muted)]">
                   {formatDistanceToNow(new Date(item.createdAt))}
                 </p>

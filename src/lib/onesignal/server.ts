@@ -415,7 +415,7 @@ export async function sendBattleNotification(
 
 // ── Guardrails: quiet hours + daily cap ──────────────────────────────
 
-const DEFAULT_DAILY_CAP = 5;
+const DEFAULT_DAILY_CAP = 2;
 const DEFAULT_QUIET_START = 22;
 const DEFAULT_QUIET_END = 8;
 

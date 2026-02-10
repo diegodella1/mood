@@ -179,6 +179,9 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
           nextWindow={nextWindow}
           shieldUsed={lastPulseResult?.shieldUsed}
           streakLost={lastPulseResult?.streakLost}
+          pulseId={lastPulseResult?.pulse?.id}
+          userId={user.id}
+          windowId={windowId || undefined}
           onViewResults={() => router.push('/results')}
           onShare={() => {
             sharePulse({

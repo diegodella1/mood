@@ -288,12 +288,29 @@ export default function LeaderboardPage() {
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-2"
                 >
-                  {cities.length === 0 ? (
+                  {cities.length === 0 || (user?.cityId && cities.find(c => c.city_id === user.cityId)?.active_users !== undefined && (cities.find(c => c.city_id === user.cityId)?.active_users ?? 0) < 3) ? (
                     <div className="glass-card-subtle p-8 text-center">
-                      <p className="text-[var(--color-text-secondary)]">No city data yet</p>
-                      <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                        Select your city to join the ranks!
+                      <p className="text-2xl mb-2">🌍</p>
+                      <p className="text-[var(--color-text-secondary)] font-medium">
+                        {cities.length === 0 ? 'No city data yet' : 'Your city needs more people!'}
                       </p>
+                      <p className="text-sm text-[var(--color-text-muted)] mt-1 mb-4">
+                        {cities.length === 0 ? 'Select your city to join the ranks!' : 'Invite friends from your city to unlock the leaderboard'}
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({
+                              title: 'Join me on Global Pulse',
+                              text: 'Share how you feel and see how the world feels back!',
+                              url: window.location.origin,
+                            }).catch(() => {});
+                          }
+                        }}
+                        className="px-5 py-2.5 text-sm font-medium rounded-xl bg-[var(--color-aurora-cyan)]/20 text-[var(--color-aurora-cyan)] border border-[var(--color-aurora-cyan)]/30 hover:bg-[var(--color-aurora-cyan)]/30 transition-colors"
+                      >
+                        Invite Friends
+                      </button>
                     </div>
                   ) : (
                     cities.map((city, index) => (

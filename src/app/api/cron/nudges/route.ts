@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     const dedupeWindowMinutes = nudgesConfig.dedupe_window_minutes || 180;
-    const dailyCap = nudgesConfig.daily_cap || 5;
+    const dailyCap = nudgesConfig.daily_cap || 2;
 
     // Get enabled nudge rules
     const { data: rules } = await supabaseAdmin
@@ -84,7 +84,16 @@ export async function GET(request: NextRequest) {
             .eq('window_id', windowId)
             .limit(1);
 
-          if (pulses && pulses.length > 0) continue; // Already pulsed
+          if (pulses && pulses.length > 0) continue; // Already pulsed in this window
+
+          // Skip if user already pulsed today (any window) — no closing reminder needed
+          const { data: todayPulses } = await supabaseAdmin
+            .from('pulses')
+            .select('id')
+            .eq('user_id', user.id)
+            .like('window_id', `${dateStr}|%`)
+            .limit(1);
+          if (todayPulses && todayPulses.length > 0) continue;
 
           // Check dedupe - don't send if we already nudged for this window
           const { data: recentNudges } = await supabaseAdmin

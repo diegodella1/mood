@@ -109,8 +109,8 @@ export function getEscalationCopy(
             message: `Your ${userData.streakDays}-day streak expires tonight. Tap to save it 🔥`,
           },
           {
-            title: "Don't lose your streak",
-            message: `${userData.streakDays} days of progress — gone if you don't pulse today`,
+            title: 'Keep your momentum going',
+            message: `${userData.streakDays} days strong. Keep it going!`,
           },
           {
             title: 'Last chance today',
@@ -271,8 +271,8 @@ export function getLossAversionCopy(data: {
       message: `Your ${streakDays}-day streak expires ${timeLabel}`,
     });
     options.push({
-      title: "Don't break the chain",
-      message: `${streakDays} days gone if you miss today. Pulse now!`,
+      title: 'Keep your momentum',
+      message: `${streakDays} days strong. Keep it going!`,
     });
   }
 
@@ -469,8 +469,8 @@ export function getWindowClosingCopy(
     );
   } else {
     options.push({
-      title: 'Streak at stake!',
-      message: `${timeLabel} left! Don't lose your ${streakDays}-day streak`,
+      title: 'Keep your momentum!',
+      message: `${timeLabel} left — your ${streakDays}-day streak is counting on you`,
     });
     options.push({
       title: 'Almost out of time',

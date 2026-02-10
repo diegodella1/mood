@@ -1,11 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StreakDisplay } from './StreakDisplay';
 import { ShareButton, QuickSharePulse } from './ShareButton';
+import { InsightsCard } from './InsightsCard';
 import { AuraType, AURA_DEFINITIONS, getNextMilestone } from '@/lib/auras';
 import { getEmojiLabel } from '@/lib/constants';
+
+interface FriendSameMood {
+  friend_id: string;
+  display_name: string;
+}
 
 interface PostPulseScreenProps {
   emoji: string;
@@ -27,6 +34,10 @@ interface PostPulseScreenProps {
   // New props from atomic function
   shieldUsed?: boolean;
   streakLost?: number;
+  // New props for notes and social
+  pulseId?: string;
+  userId?: string;
+  windowId?: string;
 }
 
 const springSmooth = { type: 'spring' as const, damping: 25, stiffness: 200 };
@@ -51,10 +62,18 @@ export function PostPulseScreen({
   canChangeMood,
   shieldUsed,
   streakLost,
+  pulseId,
+  userId,
+  windowId,
 }: PostPulseScreenProps) {
+  const router = useRouter();
   const [showMilestone, setShowMilestone] = useState(false);
   const [showShieldNotification, setShowShieldNotification] = useState(shieldUsed || false);
   const [showMoodMatch, setShowMoodMatch] = useState(false);
+  const [note, setNote] = useState('');
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [friendsSameMood, setFriendsSameMood] = useState<FriendSameMood[]>([]);
   const streakIncreased = streakDays > previousStreak;
 
   // Check if user's mood matches global top mood
@@ -91,6 +110,32 @@ export function PostPulseScreen({
       return () => clearTimeout(timer);
     }
   }, [isMoodMatch]);
+
+  // Fetch friends feeling the same mood
+  useEffect(() => {
+    if (!userId || !windowId || !emoji) return;
+    fetch(`/api/friends/same-mood?userId=${userId}&windowId=${encodeURIComponent(windowId)}&mood=${encodeURIComponent(emoji)}`)
+      .then((res) => (res.ok ? res.json() : { friends: [] }))
+      .then((data) => setFriendsSameMood(data.friends || []))
+      .catch(() => {});
+  }, [userId, windowId, emoji]);
+
+  const handleSaveNote = useCallback(async () => {
+    if (!note.trim() || !pulseId || !userId) return;
+    setNoteSaving(true);
+    try {
+      const res = await fetch('/api/pulse/note', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, pulseId, note: note.trim() }),
+      });
+      if (res.ok) setNoteSaved(true);
+    } catch {
+      // Silent fail
+    } finally {
+      setNoteSaving(false);
+    }
+  }, [note, pulseId, userId]);
 
   return (
     <motion.div
@@ -242,11 +287,83 @@ export function PostPulseScreen({
           )}
         </motion.div>
 
+        {/* Note Section */}
+        {pulseId && userId && !noteSaved && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...springSmooth, delay: 0.55 }}
+            className="mt-5 pt-4 border-t border-[var(--surface-border)]"
+          >
+            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-2">
+              Add a note (optional)
+            </p>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value.slice(0, 280))}
+              placeholder="What's on your mind?"
+              rows={2}
+              className="w-full px-3 py-2 rounded-xl glass-card-subtle text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] resize-none focus:outline-none focus:ring-1 focus:ring-[var(--color-aurora-cyan)]"
+            />
+            <div className="flex items-center justify-between mt-1.5">
+              <span className="text-xs text-[var(--color-text-muted)]">{note.length}/280</span>
+              {note.trim() && (
+                <button
+                  onClick={handleSaveNote}
+                  disabled={noteSaving}
+                  className="text-xs font-medium text-[var(--color-aurora-cyan)] hover:text-[var(--color-aurora-violet)] transition-colors disabled:opacity-50"
+                >
+                  {noteSaving ? 'Saving...' : 'Save note'}
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {noteSaved && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mt-4 text-sm text-[var(--color-aurora-cyan)] font-medium"
+          >
+            Note saved
+          </motion.div>
+        )}
+
+        {/* Friends Feeling the Same */}
+        {friendsSameMood.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="mt-4 p-3 rounded-xl glass-card-subtle"
+          >
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              <span className="text-[var(--color-aurora-cyan)] font-medium">
+                Friends feeling the same:
+              </span>{' '}
+              {friendsSameMood.map((f) => f.display_name || 'Anonymous').join(', ')}
+            </p>
+          </motion.div>
+        )}
+
+        {/* Weekly Insights Mini */}
+        {userId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.65 }}
+            className="mt-4"
+          >
+            <InsightsCard userId={userId} compact />
+          </motion.div>
+        )}
+
         {/* Action Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springSmooth, delay: 0.6 }}
+          transition={{ ...springSmooth, delay: 0.7 }}
           className="flex flex-col gap-3 mt-6"
         >
           <button
@@ -254,6 +371,12 @@ export function PostPulseScreen({
             className="w-full py-3 px-4 glass-card-subtle hover:bg-[var(--surface-glass)] transition-all rounded-xl font-medium text-[var(--color-text-primary)] btn-glow"
           >
             View Global Results
+          </button>
+          <button
+            onClick={() => router.push('/history')}
+            className="w-full py-3 px-4 glass-card-subtle hover:bg-[var(--surface-glass)] transition-all rounded-xl font-medium text-[var(--color-text-secondary)]"
+          >
+            View Your History
           </button>
           <QuickSharePulse
             emoji={emoji}

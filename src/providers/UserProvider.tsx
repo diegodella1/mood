@@ -18,6 +18,7 @@ interface User {
   aura: AuraType;
   displayName: string | null;
   referralCode: string | null;
+  createdAt: string | null;
 }
 
 interface UserContextType {
@@ -72,6 +73,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         aura: data.aura as AuraType,
         displayName: data.display_name || null,
         referralCode: data.referral_code || null,
+        createdAt: data.created_at || null,
       });
     } catch (err) {
       console.error('User bootstrap error:', err);
@@ -131,6 +133,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         aura: data.aura as AuraType,
         displayName: data.display_name || null,
         referralCode: data.referral_code || null,
+        createdAt: data.created_at || null,
       });
     } catch (err) {
       console.error('User update error:', err);

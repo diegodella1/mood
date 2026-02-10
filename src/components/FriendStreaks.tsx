@@ -45,8 +45,19 @@ export function FriendStreaks() {
     fetchStreaks();
   }, [user?.id]);
 
-  if (isLoading || streaks.length === 0) {
-    return null;
+  if (isLoading) return null;
+
+  if (streaks.length === 0) {
+    return (
+      <div className="glass-card-subtle p-4 text-center">
+        <p className="text-sm text-[var(--color-text-muted)] mb-2">
+          No friend streaks yet
+        </p>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          Add friends to build streaks together
+        </p>
+      </div>
+    );
   }
 
   const atRiskStreaks = streaks.filter((s) => s.atRisk && s.streakDays > 0);

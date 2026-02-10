@@ -9,6 +9,7 @@ const pulseSchema = z.object({
   userId: z.string().uuid(),
   windowId: z.string(),
   mood: z.string().refine(isValidEmoji, { message: 'Invalid emoji' }),
+  note: z.string().max(280).optional(),
   customWindowId: z.string().uuid().optional(), // Optional: ID of custom window if submitting during event
 });
 
@@ -75,6 +76,17 @@ export async function POST(request: NextRequest) {
 
     // Result is an array with one row from the function
     const pulseResult = Array.isArray(result) ? result[0] : result;
+
+    // Save note if provided
+    if (data.note && pulseResult?.pulse_id) {
+      supabaseAdmin
+        .from('pulses')
+        .update({ note: data.note })
+        .eq('id', pulseResult.pulse_id)
+        .then(({ error: noteErr }) => {
+          if (noteErr) console.error('Note save error:', noteErr);
+        });
+    }
 
     // Award XP and update last_pulse_date (non-blocking for response but important)
     const todayDate = date; // from parseWindowId
@@ -160,7 +172,7 @@ export async function POST(request: NextRequest) {
       user_id: data.userId,
       activity_type: 'pulse',
       emoji: data.mood,
-      metadata: { window_id: data.windowId },
+      metadata: { window_id: data.windowId, ...(data.note ? { note: data.note } : {}) },
     });
 
     supabaseAdmin.rpc('update_active_session', {

@@ -18,8 +18,8 @@ const ONBOARDING_STEPS = [
   },
   {
     emoji: '🔥',
-    title: 'Streaks, XP & Surprises',
-    description: 'Pulse daily to build your streak, earn XP, level up, and unlock auras. Every pulse has a 5% Lucky Drop chance!',
+    title: 'Streaks & Auras',
+    description: 'Pulse daily to build your streak and unlock auras. The longer you go, the brighter you glow.',
     highlight: '🔥 7d Fire • ⚡ 30d Lightning • 💎 100d Diamond (permanent!)',
     type: 'info' as const,
   },

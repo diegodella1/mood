@@ -59,7 +59,7 @@ export function usePulse() {
   const [pulseContext, setPulseContext] = useState<PulseContext | null>(null);
   const [lastPulseResult, setLastPulseResult] = useState<PulseResult | null>(null);
 
-  const submitPulse = useCallback(async (mood: string, windowId: string): Promise<PulseResult> => {
+  const submitPulse = useCallback(async (mood: string, windowId: string, note?: string): Promise<PulseResult> => {
     if (!user?.id) {
       return { success: false, error: 'User not initialized' };
     }
@@ -78,6 +78,7 @@ export function usePulse() {
           userId: user.id,
           windowId,
           mood,
+          ...(note ? { note } : {}),
         }),
       });
 
