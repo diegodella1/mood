@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Optimize package imports to avoid barrel file overhead
-  // This transforms barrel imports to direct imports at build time
+  output: 'standalone',
   experimental: {
     optimizePackageImports: [
       'recharts',
