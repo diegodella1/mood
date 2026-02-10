@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Map, { Marker, Popup, NavigationControl } from 'react-map-gl';
 import { normalizeToEmoji, getEmojiLabel } from '@/lib/constants';
+import { getCityCoords } from '@/lib/cities-geo';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 // Mapbox token from environment
@@ -58,43 +59,24 @@ const KNOWN_CITIES: Record<string, [number, number]> = {
   'Beijing': [116.4074, 39.9042],
 };
 
-async function geocodeCity(cityId: string): Promise<[number, number] | null> {
+function geocodeCity(cityId: string): [number, number] | null {
   // Check cache first
   if (geocodeCache[cityId]) {
     return geocodeCache[cityId];
   }
 
-  // Check known cities
+  // Primary: look up by slug ID from cities-geo (matches DB city_id format)
+  const geoCoords = getCityCoords(cityId);
+  if (geoCoords) {
+    const coords: [number, number] = [geoCoords.lng, geoCoords.lat];
+    geocodeCache[cityId] = coords;
+    return coords;
+  }
+
+  // Fallback: check KNOWN_CITIES by display name
   if (KNOWN_CITIES[cityId]) {
     geocodeCache[cityId] = KNOWN_CITIES[cityId];
     return KNOWN_CITIES[cityId];
-  }
-
-  // Try partial match for known cities
-  for (const [knownCity, coords] of Object.entries(KNOWN_CITIES)) {
-    if (cityId.toLowerCase().includes(knownCity.toLowerCase()) ||
-        knownCity.toLowerCase().includes(cityId.toLowerCase())) {
-      geocodeCache[cityId] = coords;
-      return coords;
-    }
-  }
-
-  // Use Mapbox Geocoding API
-  if (!MAPBOX_TOKEN) return null;
-
-  try {
-    const response = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(cityId)}.json?access_token=${MAPBOX_TOKEN}&types=place&limit=1`
-    );
-    const data = await response.json();
-
-    if (data.features && data.features.length > 0) {
-      const [lng, lat] = data.features[0].center;
-      geocodeCache[cityId] = [lng, lat];
-      return [lng, lat];
-    }
-  } catch (error) {
-    console.error('Geocoding error for', cityId, error);
   }
 
   return null;
@@ -121,16 +103,14 @@ export function PulseMap({ windowId }: PulseMapProps) {
         const data = await response.json();
 
         if (data.cities) {
-          // Geocode all cities
-          const citiesWithCoords = await Promise.all(
-            data.cities.map(async (city: CityPulse) => {
-              const coordinates = await geocodeCity(city.cityId);
-              return { ...city, coordinates };
-            })
-          );
+          const citiesWithCoords = data.cities
+            .map((city: CityPulse) => ({
+              ...city,
+              coordinates: geocodeCity(city.cityId),
+            }))
+            .filter((c: CityPulse) => c.coordinates);
 
-          // Filter out cities without coordinates
-          setCities(citiesWithCoords.filter((c: CityPulse) => c.coordinates));
+          setCities(citiesWithCoords);
         }
       } catch (error) {
         console.error('Failed to fetch cities:', error);
