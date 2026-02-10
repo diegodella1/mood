@@ -89,9 +89,13 @@ function getActiveCustomWindow(
         return window;
       }
     } else if (window.event_type === 'recurring' && window.recurrence_rule) {
-      const recurrenceStart = window.event_date ? new Date(window.event_date) : new Date(0);
-      // Note: For recurring, we don't have recurrence_start in CustomWindowConfig, using event_date as fallback
-      if (isRecurringWindowActiveOnDate(window.recurrence_rule, localTime, recurrenceStart, null)) {
+      const recurrenceStart = window.recurrence_start
+        ? new Date(window.recurrence_start)
+        : window.event_date
+          ? new Date(window.event_date)
+          : new Date(0);
+      const recurrenceEnd = window.recurrence_end ? new Date(window.recurrence_end) : null;
+      if (isRecurringWindowActiveOnDate(window.recurrence_rule, localTime, recurrenceStart, recurrenceEnd)) {
         return window;
       }
     }

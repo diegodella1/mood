@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { StatsCard, DataTable, Column, Modal, ConfirmModal } from '@/components/admin';
+import { StatsCard, DataTable, Column, Modal, ConfirmModal, AdminEmojiPicker } from '@/components/admin';
 import {
   CUSTOM_WINDOW_STATUSES,
   CUSTOM_WINDOW_EVENT_TYPES,
@@ -568,16 +568,10 @@ export default function CustomWindowDetailPage({ params }: { params: Promise<{ i
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-sm text-zinc-400 mb-1">Icon</label>
-                  <input
-                    type="text"
-                    value={formData.icon}
-                    onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                    className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-center text-2xl"
-                    maxLength={2}
-                  />
-                </div>
+                <AdminEmojiPicker
+                  value={formData.icon}
+                  onChange={(emoji) => setFormData({ ...formData, icon: emoji })}
+                />
                 <div>
                   <label className="block text-sm text-zinc-400 mb-1">Color</label>
                   <input

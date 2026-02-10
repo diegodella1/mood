@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Get active custom windows
     const { data: customWindows } = await supabaseAdmin
       .from('custom_windows')
-      .select('id, name, description, icon, color, banner_url, start_hour, end_hour, event_type, event_date, recurrence_rule, xp_multiplier, bonus_badge_id, lucky_drop_boost, target_timezones, target_countries, min_streak_days, priority')
+      .select('id, name, description, icon, color, banner_url, start_hour, end_hour, event_type, event_date, recurrence_rule, recurrence_start, recurrence_end, xp_multiplier, bonus_badge_id, lucky_drop_boost, target_timezones, target_countries, min_streak_days, priority')
       .in('status', ['active', 'scheduled'])
       .order('priority', { ascending: false });
 

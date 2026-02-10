@@ -19,6 +19,8 @@ export interface CustomWindowConfig {
   event_type: 'one_time' | 'recurring';
   event_date: string | null;
   recurrence_rule: RecurrenceRule | null;
+  recurrence_start: string | null;
+  recurrence_end: string | null;
   xp_multiplier: number;
   bonus_badge_id: string | null;
   lucky_drop_boost: number;
