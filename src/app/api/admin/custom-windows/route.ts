@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Custom windows fetch error:', error);
-      return Response.json({ error: 'Failed to fetch custom windows' }, { status: 500 });
+      return Response.json({ error: `Failed to fetch custom windows: ${error.message}` }, { status: 500 });
     }
 
     // Get participant counts for each window
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Custom window create error:', error);
-      return Response.json({ error: 'Failed to create custom window' }, { status: 500 });
+      return Response.json({ error: `Failed to create custom window: ${error.message}` }, { status: 500 });
     }
 
     await logAuditAction({

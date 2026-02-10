@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Events fetch error:', error);
-      return Response.json({ error: 'Failed to fetch events' }, { status: 500 });
+      return Response.json({ error: `Failed to fetch events: ${error.message}` }, { status: 500 });
     }
 
     // Get participant counts for each event
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Event create error:', error);
-      return Response.json({ error: 'Failed to create event' }, { status: 500 });
+      return Response.json({ error: `Failed to create event: ${error.message}` }, { status: 500 });
     }
 
     await logAuditAction({

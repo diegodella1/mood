@@ -44,10 +44,12 @@ export default function CustomWindowsPage() {
   const [selectedWindow, setSelectedWindow] = useState<CustomWindow | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const fetchWindows = useCallback(async (page: number = 1) => {
     setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('admin_token');
       const params = new URLSearchParams({
@@ -60,13 +62,18 @@ export default function CustomWindowsPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) throw new Error('Failed to fetch custom windows');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
 
       const data = await response.json();
       setWindows(data.windows);
       setPagination(data.pagination);
-    } catch (error) {
-      console.error('Error fetching custom windows:', error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch custom windows';
+      console.error('Error fetching custom windows:', message);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -285,6 +292,14 @@ export default function CustomWindowsPage() {
           + New Custom Window
         </button>
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+          <p className="text-red-400 font-medium">Error loading custom windows</p>
+          <p className="text-red-400/70 text-sm mt-1 font-mono">{error}</p>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-4">
