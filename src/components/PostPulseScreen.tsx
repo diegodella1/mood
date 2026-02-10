@@ -22,6 +22,8 @@ interface PostPulseScreenProps {
   nextWindow?: { windowType: string; startsAt: Date } | null;
   onViewResults?: () => void;
   onShare?: () => void;
+  onChangeMood?: () => void;
+  canChangeMood?: boolean;
   // New props from atomic function
   shieldUsed?: boolean;
   streakLost?: number;
@@ -45,6 +47,8 @@ export function PostPulseScreen({
   nextWindow,
   onViewResults,
   onShare,
+  onChangeMood,
+  canChangeMood,
   shieldUsed,
   streakLost,
 }: PostPulseScreenProps) {
@@ -256,6 +260,14 @@ export function PostPulseScreen({
             cityMatch={cityMatchPercentage}
             cityName={cityName}
           />
+          {canChangeMood && onChangeMood && (
+            <button
+              onClick={onChangeMood}
+              className="w-full py-2.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+            >
+              Change my mood
+            </button>
+          )}
         </motion.div>
 
         {/* Time remaining & next window */}

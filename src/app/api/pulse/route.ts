@@ -233,6 +233,96 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const changeMoodSchema = z.object({
+  userId: z.string().uuid(),
+  windowId: z.string(),
+  newMood: z.string().refine(isValidEmoji, { message: 'Invalid emoji' }),
+});
+
+/**
+ * Change mood for current window (max 1 change allowed)
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const data = changeMoodSchema.parse(body);
+
+    // Rate limit
+    const { data: allowed } = await supabaseAdmin.rpc('check_rate_limit', {
+      p_identifier: data.userId,
+      p_endpoint: 'pulse_change',
+      p_max_requests: 5,
+      p_window_seconds: 60,
+    });
+
+    if (allowed === false) {
+      return NextResponse.json(
+        { error: 'Rate limited. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
+    // Call the atomic mood change function
+    const { data: result, error: changeError } = await supabaseAdmin.rpc(
+      'change_pulse_mood',
+      {
+        p_user_id: data.userId,
+        p_window_id: data.windowId,
+        p_new_mood: data.newMood,
+      }
+    );
+
+    if (changeError) {
+      if (changeError.message?.includes('already changed')) {
+        return NextResponse.json(
+          { error: 'You can only change your mood once per window' },
+          { status: 409 }
+        );
+      }
+      if (changeError.message?.includes('Same mood')) {
+        return NextResponse.json(
+          { error: 'You already selected this mood' },
+          { status: 400 }
+        );
+      }
+      if (changeError.message?.includes('not found')) {
+        return NextResponse.json(
+          { error: 'No pulse found for this window' },
+          { status: 404 }
+        );
+      }
+
+      console.error('Mood change error:', changeError);
+      return NextResponse.json(
+        { error: 'Failed to change mood' },
+        { status: 500 }
+      );
+    }
+
+    const changeResult = Array.isArray(result) ? result[0] : result;
+
+    return NextResponse.json({
+      success: true,
+      pulseId: changeResult?.pulse_id,
+      oldMood: changeResult?.old_mood,
+      newMood: changeResult?.new_mood,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.issues },
+        { status: 400 }
+      );
+    }
+
+    console.error('Mood change error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 // Get context data for the post-pulse celebration screen
 async function getPulseContext(
   windowId: string,

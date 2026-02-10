@@ -36,12 +36,29 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
   const router = useRouter();
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isChangingMood, setIsChangingMood] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingNewMood, setPendingNewMood] = useState<string | null>(null);
   const { isActive, currentWindow, windowId, remainingTime, nextWindow, customWindow, isCustomWindow } = useActiveWindow();
-  const { submitPulse, isSubmitting, hasSubmittedThisWindow, previousStreak, pulseContext, lastPulseResult } = usePulse();
+  const { submitPulse, changeMood, isSubmitting, hasSubmittedThisWindow, hasMoodChanged, previousStreak, pulseContext, lastPulseResult } = usePulse();
   const { user } = useUser();
 
   const handleEmojiSelect = useCallback(async (emoji: string) => {
-    if (!windowId || hasSubmittedThisWindow) return;
+    if (!windowId) return;
+
+    // If changing mood, show confirmation
+    if (isChangingMood) {
+      if (emoji === selectedEmoji) {
+        // Same emoji, just go back
+        setIsChangingMood(false);
+        return;
+      }
+      setPendingNewMood(emoji);
+      setShowConfirmDialog(true);
+      return;
+    }
+
+    if (hasSubmittedThisWindow) return;
 
     setSelectedEmoji(emoji);
 
@@ -52,13 +69,38 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
 
       // Show secret achievement if earned
       if (result.newAchievements && result.newAchievements.length > 0 && onAchievement) {
-        // Show first achievement (could queue multiple)
         setTimeout(() => {
           onAchievement(result.newAchievements![0]);
-        }, 1500); // Delay to not overlap with post-pulse screen
+        }, 1500);
       }
     }
-  }, [windowId, hasSubmittedThisWindow, submitPulse, onPulseSubmitted, onAchievement]);
+  }, [windowId, hasSubmittedThisWindow, isChangingMood, selectedEmoji, submitPulse, onPulseSubmitted, onAchievement]);
+
+  const handleConfirmChange = useCallback(async () => {
+    if (!windowId || !pendingNewMood) return;
+
+    setShowConfirmDialog(false);
+
+    const result = await changeMood(pendingNewMood, windowId);
+
+    if (result.success) {
+      setSelectedEmoji(pendingNewMood);
+      onPulseSubmitted?.(pendingNewMood);
+    }
+
+    setIsChangingMood(false);
+    setPendingNewMood(null);
+  }, [windowId, pendingNewMood, changeMood, onPulseSubmitted]);
+
+  const handleCancelChange = useCallback(() => {
+    setShowConfirmDialog(false);
+    setIsChangingMood(false);
+    setPendingNewMood(null);
+  }, []);
+
+  const handleStartChangeMood = useCallback(() => {
+    setIsChangingMood(true);
+  }, []);
 
   const openPicker = useCallback(() => setIsPickerOpen(true), []);
   const closePicker = useCallback(() => setIsPickerOpen(false), []);
@@ -118,35 +160,39 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
     );
   }
 
-  // Already submitted for this window
-  if (hasSubmittedThisWindow && selectedEmoji && user) {
+  // Already submitted for this window (and not in change mode)
+  if (hasSubmittedThisWindow && selectedEmoji && user && !isChangingMood) {
     return (
-      <PostPulseScreen
-        emoji={selectedEmoji}
-        streakDays={user.streakDays}
-        previousStreak={previousStreak}
-        shields={user.streakShields}
-        aura={user.aura}
-        currentWindow={currentWindow || 'morning'}
-        cityName={pulseContext?.cityName}
-        cityMatchPercentage={pulseContext?.cityMatchPercentage}
-        globalTopMood={pulseContext?.globalTopMood}
-        globalTopPercentage={pulseContext?.globalTopPercentage}
-        remainingTime={remainingTime}
-        nextWindow={nextWindow}
-        shieldUsed={lastPulseResult?.shieldUsed}
-        streakLost={lastPulseResult?.streakLost}
-        onViewResults={() => router.push('/results')}
-        onShare={() => {
-          sharePulse({
-            emoji: selectedEmoji,
-            streakDays: user.streakDays,
-            aura: user.aura,
-            cityMatchPercentage: pulseContext?.cityMatchPercentage,
-            cityName: pulseContext?.cityName,
-          });
-        }}
-      />
+      <>
+        <PostPulseScreen
+          emoji={selectedEmoji}
+          streakDays={user.streakDays}
+          previousStreak={previousStreak}
+          shields={user.streakShields}
+          aura={user.aura}
+          currentWindow={currentWindow || 'morning'}
+          cityName={pulseContext?.cityName}
+          cityMatchPercentage={pulseContext?.cityMatchPercentage}
+          globalTopMood={pulseContext?.globalTopMood}
+          globalTopPercentage={pulseContext?.globalTopPercentage}
+          remainingTime={remainingTime}
+          nextWindow={nextWindow}
+          shieldUsed={lastPulseResult?.shieldUsed}
+          streakLost={lastPulseResult?.streakLost}
+          onViewResults={() => router.push('/results')}
+          onShare={() => {
+            sharePulse({
+              emoji: selectedEmoji,
+              streakDays: user.streakDays,
+              aura: user.aura,
+              cityMatchPercentage: pulseContext?.cityMatchPercentage,
+              cityName: pulseContext?.cityName,
+            });
+          }}
+          onChangeMood={handleStartChangeMood}
+          canChangeMood={!hasMoodChanged}
+        />
+      </>
     );
   }
 
@@ -205,7 +251,7 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
         )}
 
         <h2 className="font-display text-3xl font-bold text-[var(--color-text-primary)] mb-2">
-          How are you feeling?
+          {isChangingMood ? 'Change your mood' : 'How are you feeling?'}
         </h2>
         <p className="text-[var(--color-text-secondary)]">
           {isCustomWindow ? (
@@ -252,7 +298,7 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="text-center"
+        className="text-center space-y-3"
       >
         <motion.button
           onClick={openPicker}
@@ -264,6 +310,14 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
           <span className="mr-2">✨</span>
           Pick another emoji
         </motion.button>
+        {isChangingMood && (
+          <button
+            onClick={handleCancelChange}
+            className="block mx-auto text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
+          >
+            Cancel change
+          </button>
+        )}
       </motion.div>
 
       {/* Loading State */}
@@ -288,6 +342,50 @@ export function MoodSelector({ onPulseSubmitted, onAchievement }: MoodSelectorPr
         onClose={closePicker}
         onSelect={handleEmojiSelect}
       />
+
+      {/* Mood Change Confirmation Dialog */}
+      <AnimatePresence>
+        {showConfirmDialog && pendingNewMood && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-void)]/90 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="glass-card-glow p-6 text-center max-w-xs w-full"
+            >
+              <p className="text-[var(--color-text-secondary)] text-sm mb-3">Change your mood?</p>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <span className="text-4xl">{selectedEmoji}</span>
+                <span className="text-[var(--color-text-muted)]">&rarr;</span>
+                <span className="text-4xl">{pendingNewMood}</span>
+              </div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-5">
+                You can only change your mood once per window.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelChange}
+                  className="flex-1 py-2.5 glass-card-subtle rounded-xl text-sm text-[var(--color-text-secondary)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmChange}
+                  disabled={isSubmitting}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-[var(--color-aurora-cyan)]/20 text-[var(--color-aurora-cyan)] border border-[var(--color-aurora-cyan)]/30 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Changing...' : 'Confirm'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

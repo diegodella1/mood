@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     // Check if pulse exists
     const { data: pulse, error: pulseError } = await supabaseAdmin
       .from('pulses')
-      .select('id, user_id, reaction_count')
+      .select('id, user_id, window_id, reaction_count')
       .eq('id', data.pulseId)
       .single();
 
@@ -40,6 +40,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Cannot react to your own pulse' },
         { status: 400 }
+      );
+    }
+
+    // Check if user already reacted to any pulse in this window (1 reaction per window)
+    const { data: existingWindowReaction } = await supabaseAdmin
+      .from('reactions')
+      .select('id, pulses!inner(window_id)')
+      .eq('from_user_id', data.fromUserId)
+      .eq('pulses.window_id', pulse.window_id)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingWindowReaction) {
+      return NextResponse.json(
+        { error: 'Already reacted in this window' },
+        { status: 409 }
       );
     }
 

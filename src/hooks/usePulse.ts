@@ -54,6 +54,7 @@ export function usePulse() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastPulse, setLastPulse] = useState<PulseResult['pulse'] | null>(null);
   const [hasSubmittedThisWindow, setHasSubmittedThisWindow] = useState(false);
+  const [hasMoodChanged, setHasMoodChanged] = useState(false);
   const [previousStreak, setPreviousStreak] = useState<number>(0);
   const [pulseContext, setPulseContext] = useState<PulseContext | null>(null);
   const [lastPulseResult, setLastPulseResult] = useState<PulseResult | null>(null);
@@ -144,17 +145,76 @@ export function usePulse() {
     }
   }, [user?.id, user?.streakDays, hasSubmittedThisWindow, refreshUser]);
 
+  const changeMood = useCallback(async (newMood: string, windowId: string): Promise<{
+    success: boolean;
+    error?: string;
+    oldMood?: string;
+    newMood?: string;
+  }> => {
+    if (!user?.id) {
+      return { success: false, error: 'User not initialized' };
+    }
+
+    if (hasMoodChanged) {
+      return { success: false, error: 'Already changed mood this window' };
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/pulse', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          windowId,
+          newMood,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          setHasMoodChanged(true);
+        }
+        return { success: false, error: data.error };
+      }
+
+      // Update local state
+      setHasMoodChanged(true);
+      setLastPulse((prev) => prev ? { ...prev, mood: newMood } : prev);
+
+      // Track analytics
+      trackPulseSubmitted(newMood, windowId.split('|')[1]);
+
+      return {
+        success: true,
+        oldMood: data.oldMood,
+        newMood: data.newMood,
+      };
+    } catch (err) {
+      console.error('Mood change error:', err);
+      return { success: false, error: 'Failed to change mood' };
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [user?.id, hasMoodChanged]);
+
   const resetWindowState = useCallback(() => {
     setHasSubmittedThisWindow(false);
+    setHasMoodChanged(false);
     setLastPulse(null);
     setLastPulseResult(null);
   }, []);
 
   return {
     submitPulse,
+    changeMood,
     isSubmitting,
     lastPulse,
     hasSubmittedThisWindow,
+    hasMoodChanged,
     resetWindowState,
     previousStreak,
     pulseContext,
