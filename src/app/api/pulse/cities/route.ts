@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch all city aggregates for this window
-    const { data: cities, error } = await supabaseAdmin
+    // Fetch city aggregates for this window
+    let { data: cities, error } = await supabaseAdmin
       .from('aggregates_city_window')
       .select('city_id, mood_counts, total_count')
       .eq('window_id', windowId)
@@ -23,6 +23,23 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       throw error;
+    }
+
+    // Fallback: if no data for this exact window, get most recent data
+    if (!cities || cities.length === 0) {
+      const { data: fallback } = await supabaseAdmin
+        .from('aggregates_city_window')
+        .select('city_id, mood_counts, total_count')
+        .order('updated_at', { ascending: false })
+        .limit(100);
+
+      // Deduplicate by city_id (keep first = most recent)
+      const seen = new Set<string>();
+      cities = (fallback || []).filter((c) => {
+        if (seen.has(c.city_id)) return false;
+        seen.add(c.city_id);
+        return true;
+      });
     }
 
     // Transform to include dominant mood

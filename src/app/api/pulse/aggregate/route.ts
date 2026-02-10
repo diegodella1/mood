@@ -14,22 +14,47 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Fetch global aggregate
-    const { data: global } = await supabaseAdmin
+    // Fetch global aggregate for this window
+    let { data: global } = await supabaseAdmin
       .from('aggregates_global_window')
       .select()
       .eq('window_id', windowId)
       .single();
 
+    // Fallback: if no data for this exact window, get most recent
+    if (!global) {
+      const { data: fallback } = await supabaseAdmin
+        .from('aggregates_global_window')
+        .select()
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      global = fallback;
+    }
+
     // Fetch city aggregate if cityId provided
     let city = null;
     if (cityId) {
-      const { data: cityData } = await supabaseAdmin
+      let { data: cityData } = await supabaseAdmin
         .from('aggregates_city_window')
         .select()
         .eq('window_id', windowId)
         .eq('city_id', cityId)
         .single();
+
+      // Fallback: most recent data for this city
+      if (!cityData) {
+        const { data: fallback } = await supabaseAdmin
+          .from('aggregates_city_window')
+          .select()
+          .eq('city_id', cityId)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        cityData = fallback;
+      }
 
       city = cityData;
     }
