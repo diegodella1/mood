@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { BADGE_DEFINITIONS, checkBadgeEligibility, type UserStats } from '@/lib/badges';
+import { checkBadgeEligibility, type UserStats } from '@/lib/badges';
+import { requireUser } from '@/lib/session';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+
   const { id: userId } = await params;
 
   try {
     // Validate userId is a UUID
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
+    }
+
+    if (session.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Get stats efficiently using database function (fixes N+1 query)

@@ -1,18 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { updateUserTags } from '@/lib/onesignal/server';
+import { requireUser } from '@/lib/session';
 
 const tagsSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   tags: z.record(z.string(), z.string()),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const userId = session.userId;
+
     const body = await request.json();
     const data = tagsSchema.parse(body);
 
-    const result = await updateUserTags(data.userId, data.tags);
+    const result = await updateUserTags(userId, data.tags);
 
     if (!result.success) {
       return NextResponse.json(

@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/share/card?userId=<uuid>&type=<weekly|daily|streak|badge>
+ * GET /api/share/card?type=<weekly|daily|streak|badge>
  *
  * Returns JSON data for generating a shareable mood card.
  * The frontend renders this as a visual card for Instagram/Twitter sharing.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
-  const cardType = searchParams.get('type') || 'weekly';
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
 
-  if (!userId) {
-    return NextResponse.json({ error: 'userId required' }, { status: 400 });
-  }
+  const { searchParams } = new URL(request.url);
+  const cardType = searchParams.get('type') || 'weekly';
 
   try {
     // Get user data

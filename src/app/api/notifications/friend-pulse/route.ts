@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { sendNotificationToUsers } from '@/lib/onesignal/server';
+import { validateInternalAuth } from '@/lib/api-utils';
 
 const notifySchema = z.object({
   userId: z.string().uuid(),
@@ -14,6 +15,9 @@ const notifySchema = z.object({
  * Called from the pulse API (fire and forget)
  */
 export async function POST(request: NextRequest) {
+  const auth = validateInternalAuth(request);
+  if (!auth.valid) return auth.error!;
+
   try {
     const body = await request.json();
     const data = notifySchema.parse(body);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { isValidUUID } from '@/lib/api-utils';
+import { requireUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 5; // Cache for 5 seconds
@@ -30,18 +30,22 @@ export async function GET() {
 
 // Update user's active session (heartbeat)
 const heartbeatSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   window: z.string().optional(),
   isPulsing: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const userId = session.userId;
+
     const body = await request.json();
     const data = heartbeatSchema.parse(body);
 
     await supabaseAdmin.rpc('update_active_session', {
-      p_user_id: data.userId,
+      p_user_id: userId,
       p_window: data.window || null,
       p_is_pulsing: data.isPulsing || false,
     });

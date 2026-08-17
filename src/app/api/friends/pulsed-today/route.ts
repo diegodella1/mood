@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
-
-  if (!userId) {
-    return NextResponse.json({ error: 'userId required' }, { status: 400 });
-  }
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
 
   try {
     const { data, error } = await supabaseAdmin.rpc('count_friends_pulsed_today', {

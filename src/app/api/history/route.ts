@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
+
   const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
   const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
   const month = parseInt(searchParams.get('month') || String(new Date().getMonth() + 1));
-
-  if (!userId) {
-    return NextResponse.json({ error: 'userId required' }, { status: 400 });
-  }
 
   try {
     const [historyResult, insightsResult] = await Promise.all([

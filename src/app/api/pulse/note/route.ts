@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/session';
 
 const noteSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   pulseId: z.string().uuid(),
   note: z.string().max(280),
 });
@@ -13,6 +14,10 @@ const noteSchema = z.object({
  */
 export async function PATCH(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const userId = session.userId;
+
     const body = await request.json();
     const data = noteSchema.parse(body);
 
@@ -21,7 +26,7 @@ export async function PATCH(request: NextRequest) {
       .from('pulses')
       .select('id')
       .eq('id', data.pulseId)
-      .eq('user_id', data.userId)
+      .eq('user_id', userId)
       .single();
 
     if (fetchErr || !pulse) {
