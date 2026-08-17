@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch city aggregates for this window
-    let { data: cities, error } = await supabaseAdmin
+    const { data: initialCities, error } = await supabaseAdmin
       .from('aggregates_city_window')
       .select('city_id, mood_counts, total_count')
       .eq('window_id', windowId)
@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
     if (error) {
       throw error;
     }
+
+    let cities = initialCities;
 
     // Fallback: if no data for this exact window, get most recent data
     if (!cities || cities.length === 0) {
