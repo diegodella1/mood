@@ -7,8 +7,8 @@ import { SIDEBAR_ITEMS } from '@/lib/admin/constants';
 export function Sidebar() {
   const pathname = usePathname();
 
-  const handleLogout = () => {
-    localStorage.removeItem('admin_token');
+  const handleLogout = async () => {
+    await fetch('/api/admin/session', { method: 'DELETE' });
     window.location.href = '/admin/login';
   };
 

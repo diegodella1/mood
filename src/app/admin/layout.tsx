@@ -20,12 +20,20 @@ export default function AdminLayout({
       return;
     }
 
-    const token = localStorage.getItem('admin_token');
-    if (!token) {
-      router.replace('/admin/login');
-    } else {
-      setIsAuthenticated(true);
-    }
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/admin/session');
+        if (!response.ok) {
+          router.replace('/admin/login');
+          return;
+        }
+        setIsAuthenticated(true);
+      } catch {
+        router.replace('/admin/login');
+      }
+    };
+
+    void checkSession();
   }, [pathname, router]);
 
   // Show loading while checking auth

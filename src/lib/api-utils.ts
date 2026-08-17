@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { identifierToUuid, verifyBearerToken } from '@/lib/crypto-auth';
+import { getClientIp } from '@/lib/session';
+import { verifyAdminAuth } from '@/lib/admin/auth';
 
 // ============================================
 // CRON AUTHENTICATION
@@ -11,7 +13,6 @@ import { supabaseAdmin } from '@/lib/supabase/server';
  * Use this at the start of every cron endpoint
  */
 export function validateCronAuth(request: NextRequest): { valid: boolean; error?: NextResponse } {
-  const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
   if (!cronSecret || cronSecret.length < 32) {
@@ -22,27 +23,7 @@ export function validateCronAuth(request: NextRequest): { valid: boolean; error?
     };
   }
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return {
-      valid: false,
-      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-    };
-  }
-
-  const token = authHeader.slice(7);
-
-  // Use constant-time comparison to prevent timing attacks
-  const tokenBuffer = Buffer.from(token);
-  const secretBuffer = Buffer.from(cronSecret);
-
-  if (tokenBuffer.length !== secretBuffer.length) {
-    return {
-      valid: false,
-      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-    };
-  }
-
-  if (!crypto.timingSafeEqual(tokenBuffer, secretBuffer)) {
+  if (!verifyBearerToken(request.headers.get('authorization'), cronSecret)) {
     return {
       valid: false,
       error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
@@ -52,15 +33,18 @@ export function validateCronAuth(request: NextRequest): { valid: boolean; error?
   return { valid: true };
 }
 
+export function validateInternalAuth(request: NextRequest): { valid: boolean; error?: NextResponse } {
+  return validateCronAuth(request);
+}
+
 // ============================================
-// ADMIN AUTHENTICATION (Fixed timing attack)
+// ADMIN AUTHENTICATION
 // ============================================
 
 /**
- * Validates admin secret with constant-time comparison
+ * Validates admin cookie session or Bearer ADMIN_SECRET.
  */
 export function validateAdminAuth(request: NextRequest): { valid: boolean; error?: NextResponse } {
-  const authHeader = request.headers.get('authorization');
   const adminSecret = process.env.ADMIN_SECRET;
 
   if (!adminSecret || adminSecret.length < 32) {
@@ -71,34 +55,7 @@ export function validateAdminAuth(request: NextRequest): { valid: boolean; error
     };
   }
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return {
-      valid: false,
-      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-    };
-  }
-
-  const token = authHeader.slice(7);
-
-  // Use constant-time comparison to prevent timing attacks
-  try {
-    const tokenBuffer = Buffer.from(token);
-    const secretBuffer = Buffer.from(adminSecret);
-
-    if (tokenBuffer.length !== secretBuffer.length) {
-      return {
-        valid: false,
-        error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-      };
-    }
-
-    if (!crypto.timingSafeEqual(tokenBuffer, secretBuffer)) {
-      return {
-        valid: false,
-        error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-      };
-    }
-  } catch {
+  if (!verifyAdminAuth(request)) {
     return {
       valid: false,
       error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
@@ -127,12 +84,18 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
   push_optin: { maxRequests: 5, windowSeconds: 60 },        // 5 per min
 };
 
+const FAIL_CLOSED_ACTIONS = new Set<keyof typeof RATE_LIMITS>([
+  'recovery_request',
+  'recovery_verify',
+  'email_update',
+]);
+
 /**
- * Check if action is rate limited
- * Returns true if allowed, false if rate limited
+ * Check if action is rate limited.
+ * `identifier` may be a user UUID or any string (IP, email hash, etc).
  */
 export async function checkRateLimit(
-  userId: string,
+  identifier: string,
   actionType: keyof typeof RATE_LIMITS
 ): Promise<{ allowed: boolean; retryAfter?: number }> {
   const config = RATE_LIMITS[actionType];
@@ -140,6 +103,8 @@ export async function checkRateLimit(
     console.warn(`Unknown rate limit action type: ${actionType}`);
     return { allowed: true };
   }
+
+  const userId = isValidUUID(identifier) ? identifier : identifierToUuid(identifier);
 
   try {
     const { data, error } = await supabaseAdmin.rpc('check_action_rate_limit', {
@@ -151,7 +116,9 @@ export async function checkRateLimit(
 
     if (error) {
       console.error('Rate limit check error:', error);
-      // Fail open - allow the request if rate limiting is broken
+      if (FAIL_CLOSED_ACTIONS.has(actionType)) {
+        return { allowed: false, retryAfter: config.windowSeconds };
+      }
       return { allowed: true };
     }
 
@@ -161,8 +128,19 @@ export async function checkRateLimit(
     };
   } catch (error) {
     console.error('Rate limit check exception:', error);
+    if (FAIL_CLOSED_ACTIONS.has(actionType)) {
+      return { allowed: false, retryAfter: config.windowSeconds };
+    }
     return { allowed: true };
   }
+}
+
+export async function checkIpRateLimit(
+  request: NextRequest,
+  actionType: keyof typeof RATE_LIMITS
+): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const ip = getClientIp(request);
+  return checkRateLimit(`ip:${actionType}:${ip}`, actionType);
 }
 
 /**

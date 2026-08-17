@@ -35,7 +35,7 @@ const ONBOARDING_STORAGE_KEY = 'global_pulse_onboarding_complete';
 const springSmooth = { type: 'spring' as const, damping: 30, stiffness: 200 };
 
 export default function HomePage() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading, updateUser } = useUser();
   const { isSubscribed } = useOneSignal();
   const { isActive, currentWindow, windowId, isCustomWindow, customWindow, remainingTime } = useActiveWindow();
   const { hasSubmittedThisWindow } = usePulse();
@@ -63,18 +63,13 @@ export default function HomePage() {
     }
   }, []);
 
-  const handleOnboardingComplete = async (city?: string) => {
+  const handleOnboardingComplete = async (cityId?: string) => {
     localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
     setShowOnboarding(false);
 
-    // Save city if selected
-    if (city && user?.id) {
+    if (cityId) {
       try {
-        await fetch(`/api/users/${user.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ city }),
-        });
+        await updateUser({ cityId });
       } catch (error) {
         console.error('Failed to save city:', error);
       }
@@ -269,6 +264,7 @@ export default function HomePage() {
                   <button
                     onClick={() => setShowUserSearch(true)}
                     data-tour="find-friends"
+                    aria-label="Find friends"
                     className="flex-1 glass-card-subtle p-4 flex items-center justify-center gap-2 hover:bg-[var(--surface-glass)] transition-all rounded-xl"
                   >
                     <svg className="w-5 h-5 text-[var(--color-aurora-cyan)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">

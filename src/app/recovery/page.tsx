@@ -185,7 +185,7 @@ export default function RecoveryPage() {
                     Enter Code
                   </h2>
                   <p className="text-[var(--color-text-secondary)]">
-                    We sent a 6-digit code to<br />
+                    We sent an 8-character code to<br />
                     <span className="text-[var(--color-aurora-cyan)]">{email}</span>
                   </p>
                 </div>
@@ -195,10 +195,10 @@ export default function RecoveryPage() {
                     <input
                       type="text"
                       value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="000000"
+                      onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
+                      placeholder="ABCD2345"
                       required
-                      maxLength={6}
+                      maxLength={8}
                       className="w-full px-4 py-4 bg-[var(--surface-glass)] border border-[var(--surface-border)] rounded-xl text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-aurora-cyan)] text-center font-mono text-2xl tracking-widest"
                     />
                   </div>
@@ -215,7 +215,7 @@ export default function RecoveryPage() {
 
                   <motion.button
                     type="submit"
-                    disabled={isLoading || code.length !== 6}
+                    disabled={isLoading || code.length !== 8}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="w-full py-4 aurora-gradient rounded-xl font-display font-bold text-white disabled:opacity-50"

@@ -1,9 +1,4 @@
-'use client';
-
-import { motion } from 'framer-motion';
 import Link from 'next/link';
-
-const springSmooth = { type: 'spring' as const, damping: 25, stiffness: 200 };
 
 const features = [
   {
@@ -62,33 +57,24 @@ export default function AboutPage() {
 
       <div className="max-w-2xl mx-auto px-6">
         {/* Hero Section */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={springSmooth}
+        <section
           className="text-center mb-12"
         >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', damping: 10, stiffness: 100 }}
-            className="text-7xl mb-6"
+          <div
+          className="text-7xl mb-6"
           >
             🌐
-          </motion.div>
+          </div>
           <h1 className="font-display text-4xl font-bold text-gradient-aurora mb-4">
             Global Pulse
           </h1>
           <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed">
             A real-time emotional pulse of the world. Share how you feel. See how the world feels. Together.
           </p>
-        </motion.section>
+        </section>
 
         {/* What is Global Pulse */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springSmooth, delay: 0.1 }}
+        <section
           className="mb-12"
         >
           <h2 className="font-display text-2xl font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-3">
@@ -109,13 +95,10 @@ export default function AboutPage() {
               than yourself. One emoji. One moment. Millions of people.
             </p>
           </div>
-        </motion.section>
+        </section>
 
         {/* How to Play */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springSmooth, delay: 0.2 }}
+        <section
           className="mb-12"
         >
           <h2 className="font-display text-2xl font-bold text-[var(--color-text-primary)] mb-6 flex items-center gap-3">
@@ -123,12 +106,9 @@ export default function AboutPage() {
             <span>How to Play</span>
           </h2>
           <div className="space-y-4">
-            {howToPlay.map((item, index) => (
-              <motion.div
+            {howToPlay.map((item) => (
+              <div
                 key={item.step}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ ...springSmooth, delay: 0.25 + index * 0.08 }}
                 className="glass-card-subtle p-5 flex items-start gap-4"
               >
                 <div className="flex-shrink-0">
@@ -149,16 +129,13 @@ export default function AboutPage() {
                     {item.description}
                   </p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
-        </motion.section>
+        </section>
 
         {/* Features */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springSmooth, delay: 0.4 }}
+        <section
           className="mb-12"
         >
           <h2 className="font-display text-2xl font-bold text-[var(--color-text-primary)] mb-6 flex items-center gap-3">
@@ -166,12 +143,9 @@ export default function AboutPage() {
             <span>Features</span>
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {features.map((feature, index) => (
-              <motion.div
+            {features.map((feature) => (
+              <div
                 key={feature.title}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ ...springSmooth, delay: 0.45 + index * 0.08 }}
                 className="glass-card p-5"
               >
                 <span className="text-3xl mb-3 block">{feature.emoji}</span>
@@ -181,16 +155,13 @@ export default function AboutPage() {
                 <p className="text-[var(--color-text-muted)] text-sm leading-relaxed">
                   {feature.description}
                 </p>
-              </motion.div>
+              </div>
             ))}
           </div>
-        </motion.section>
+        </section>
 
         {/* Time Windows */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springSmooth, delay: 0.6 }}
+        <section
           className="mb-12"
         >
           <h2 className="font-display text-2xl font-bold text-[var(--color-text-primary)] mb-4 flex items-center gap-3">
@@ -226,23 +197,18 @@ export default function AboutPage() {
               </div>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* CTA */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springSmooth, delay: 0.7 }}
+        <section
           className="text-center"
         >
           <div className="glass-card-glow p-8">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-5xl mb-4"
+            <div
+          className="text-5xl mb-4"
             >
               💜
-            </motion.div>
+            </div>
             <h3 className="font-display text-xl font-bold text-[var(--color-text-primary)] mb-3">
               Ready to join?
             </h3>
@@ -257,13 +223,10 @@ export default function AboutPage() {
               <span>→</span>
             </Link>
           </div>
-        </motion.section>
+        </section>
 
         {/* Back Link */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
+        <div
           className="text-center mt-8"
         >
           <Link
@@ -272,7 +235,7 @@ export default function AboutPage() {
           >
             ← Back to Home
           </Link>
-        </motion.div>
+        </div>
       </div>
     </main>
   );

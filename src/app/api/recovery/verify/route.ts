@@ -1,99 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { checkRateLimit, rateLimitResponse } from '@/lib/api-utils';
+import { checkIpRateLimit, rateLimitResponse } from '@/lib/api-utils';
+import { applyUserSessionCookie } from '@/lib/session';
+import { hashVerificationCode, maskEmail, MAX_VERIFY_ATTEMPTS } from '@/lib/recovery';
 
 const verifySchema = z.object({
-  code: z.string().length(6).regex(/^\d{6}$/, 'Code must be 6 digits'),
-  currentUserId: z.string().uuid().optional(), // Current anonymous user to merge
+  code: z.string().min(6).max(12),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const ipLimit = await checkIpRateLimit(request, 'recovery_verify');
+    if (!ipLimit.allowed) {
+      return rateLimitResponse(ipLimit.retryAfter);
+    }
+
     const body = await request.json();
     const data = verifySchema.parse(body);
+    const codeHash = hashVerificationCode(data.code);
 
-    // Rate limit by code attempt (prevents brute force)
-    const rateLimitId = data.currentUserId || `code:${data.code.slice(0, 3)}`;
-    const rateLimit = await checkRateLimit(rateLimitId, 'recovery_verify');
-    if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.retryAfter);
+    const { data: row, error: lookupError } = await supabaseAdmin
+      .from('recovery_codes')
+      .select('id, user_id, expires_at, used_at')
+      .eq('code', codeHash)
+      .is('used_at', null)
+      .maybeSingle();
+
+    if (lookupError) {
+      console.error('Code verification error:', lookupError);
+      return NextResponse.json({ error: 'Failed to verify code' }, { status: 500 });
     }
 
-    // Verify the code using database function
-    const { data: recoveredUserId, error: verifyError } = await supabaseAdmin.rpc(
-      'verify_recovery_code',
-      { p_code: data.code }
-    );
-
-    if (verifyError) {
-      console.error('Code verification error:', verifyError);
-      return NextResponse.json(
-        { error: 'Failed to verify code' },
-        { status: 500 }
-      );
+    if (!row || new Date(row.expires_at).getTime() < Date.now()) {
+      return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
     }
 
-    if (!recoveredUserId) {
-      return NextResponse.json(
-        { error: 'Invalid or expired code' },
-        { status: 400 }
-      );
+    const { data: attempts } = await supabaseAdmin
+      .from('recovery_codes')
+      .select('id')
+      .eq('user_id', row.user_id)
+      .gte('created_at', new Date(Date.now() - 15 * 60 * 1000).toISOString());
+
+    if ((attempts?.length || 0) > MAX_VERIFY_ATTEMPTS + 3) {
+      return NextResponse.json({ error: 'Too many attempts' }, { status: 429 });
     }
 
-    // If there's a current anonymous user, we could merge their data
-    // For now, we just return the recovered user ID
-    // The client will replace their localStorage userId with this one
+    await supabaseAdmin
+      .from('recovery_codes')
+      .update({ used_at: new Date().toISOString() })
+      .eq('id', row.id);
 
-    // Get the recovered user's data
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
       .select('id, streak_days, max_streak_ever, aura, email')
-      .eq('id', recoveredUserId)
+      .eq('id', row.user_id)
       .single();
 
     if (userError || !user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Mark email as verified (they received the code)
-    await supabaseAdmin
-      .from('users')
-      .update({ email_verified: true })
-      .eq('id', recoveredUserId);
-
-    // Mask email for response
-    let maskedEmail = null;
-    if (user.email) {
-      const [local, domain] = user.email.split('@');
-      maskedEmail = local.slice(0, 2) + '***@' + domain;
-    }
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
-      userId: recoveredUserId,
+      userId: user.id,
       user: {
         streakDays: user.streak_days,
         maxStreakEver: user.max_streak_ever,
         aura: user.aura,
-        email: maskedEmail,
+        email: user.email ? maskEmail(user.email) : null,
       },
     });
+
+    return applyUserSessionCookie(response, user.id);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid code format' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid code format' }, { status: 400 });
     }
 
     console.error('Recovery verify error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

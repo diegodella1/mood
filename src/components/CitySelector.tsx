@@ -2,91 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// Major cities by country (expandable)
-const CITIES_BY_COUNTRY: Record<string, Array<{ id: string; name: string }>> = {
-  AR: [
-    { id: 'buenos-aires', name: 'Buenos Aires' },
-    { id: 'cordoba', name: 'Córdoba' },
-    { id: 'rosario', name: 'Rosario' },
-    { id: 'mendoza', name: 'Mendoza' },
-    { id: 'la-plata', name: 'La Plata' },
-    { id: 'tucuman', name: 'Tucumán' },
-    { id: 'mar-del-plata', name: 'Mar del Plata' },
-  ],
-  US: [
-    { id: 'new-york', name: 'New York' },
-    { id: 'los-angeles', name: 'Los Angeles' },
-    { id: 'chicago', name: 'Chicago' },
-    { id: 'houston', name: 'Houston' },
-    { id: 'miami', name: 'Miami' },
-    { id: 'san-francisco', name: 'San Francisco' },
-    { id: 'seattle', name: 'Seattle' },
-  ],
-  BR: [
-    { id: 'sao-paulo', name: 'São Paulo' },
-    { id: 'rio-de-janeiro', name: 'Rio de Janeiro' },
-    { id: 'brasilia', name: 'Brasília' },
-    { id: 'salvador', name: 'Salvador' },
-    { id: 'fortaleza', name: 'Fortaleza' },
-  ],
-  MX: [
-    { id: 'mexico-city', name: 'Ciudad de México' },
-    { id: 'guadalajara', name: 'Guadalajara' },
-    { id: 'monterrey', name: 'Monterrey' },
-    { id: 'cancun', name: 'Cancún' },
-  ],
-  ES: [
-    { id: 'madrid', name: 'Madrid' },
-    { id: 'barcelona', name: 'Barcelona' },
-    { id: 'valencia', name: 'Valencia' },
-    { id: 'sevilla', name: 'Sevilla' },
-  ],
-  GB: [
-    { id: 'london', name: 'London' },
-    { id: 'manchester', name: 'Manchester' },
-    { id: 'birmingham', name: 'Birmingham' },
-    { id: 'edinburgh', name: 'Edinburgh' },
-  ],
-  DE: [
-    { id: 'berlin', name: 'Berlin' },
-    { id: 'munich', name: 'Munich' },
-    { id: 'hamburg', name: 'Hamburg' },
-    { id: 'frankfurt', name: 'Frankfurt' },
-  ],
-  FR: [
-    { id: 'paris', name: 'Paris' },
-    { id: 'lyon', name: 'Lyon' },
-    { id: 'marseille', name: 'Marseille' },
-    { id: 'toulouse', name: 'Toulouse' },
-  ],
-  CL: [
-    { id: 'santiago', name: 'Santiago' },
-    { id: 'valparaiso', name: 'Valparaíso' },
-    { id: 'concepcion', name: 'Concepción' },
-  ],
-  CO: [
-    { id: 'bogota', name: 'Bogotá' },
-    { id: 'medellin', name: 'Medellín' },
-    { id: 'cali', name: 'Cali' },
-    { id: 'barranquilla', name: 'Barranquilla' },
-  ],
-  // Add more countries as needed
-};
-
-// Country names for display
-const COUNTRY_NAMES: Record<string, string> = {
-  AR: 'Argentina',
-  US: 'United States',
-  BR: 'Brazil',
-  MX: 'Mexico',
-  ES: 'Spain',
-  GB: 'United Kingdom',
-  DE: 'Germany',
-  FR: 'France',
-  CL: 'Chile',
-  CO: 'Colombia',
-};
+import { getCitiesByCountry, COUNTRY_NAMES } from '@/lib/cities-geo';
 
 interface CitySelectorProps {
   isOpen: boolean;
@@ -109,11 +25,11 @@ export function CitySelector({
 
   // Get cities for user's country first, then others
   const allCities = useMemo(() => {
+    const citiesByCountry = getCitiesByCountry();
     const result: Array<{ id: string; name: string; country: string; countryCode: string }> = [];
 
-    // User's country first
-    if (countryCode && CITIES_BY_COUNTRY[countryCode]) {
-      CITIES_BY_COUNTRY[countryCode].forEach((city) => {
+    if (countryCode && citiesByCountry[countryCode]) {
+      citiesByCountry[countryCode].forEach((city) => {
         result.push({
           ...city,
           country: COUNTRY_NAMES[countryCode] || countryCode,
@@ -122,8 +38,7 @@ export function CitySelector({
       });
     }
 
-    // Then other countries
-    Object.entries(CITIES_BY_COUNTRY).forEach(([code, cities]) => {
+    Object.entries(citiesByCountry).forEach(([code, cities]) => {
       if (code !== countryCode) {
         cities.forEach((city) => {
           result.push({

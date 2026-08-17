@@ -15,15 +15,13 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // Verify the secret by making a test request to the stats endpoint
-      const response = await fetch('/api/admin/stats', {
-        headers: {
-          Authorization: `Bearer ${secret}`,
-        },
+      const response = await fetch('/api/admin/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret }),
       });
 
       if (response.ok) {
-        localStorage.setItem('admin_token', secret);
         router.replace('/admin');
       } else {
         setError('Invalid admin secret');

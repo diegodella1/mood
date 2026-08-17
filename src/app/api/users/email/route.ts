@@ -1,32 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { checkRateLimit, rateLimitResponse, isValidUUID } from '@/lib/api-utils';
+import { checkIpRateLimit, checkRateLimit, rateLimitResponse } from '@/lib/api-utils';
+import { requireUser } from '@/lib/session';
+import { sendVerificationEmail } from '@/lib/email';
+import {
+  EMAIL_VERIFY_TTL_MS,
+  generateVerificationCode,
+  hashVerificationCode,
+  maskEmail,
+} from '@/lib/recovery';
 
 const emailSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   email: z.string().email(),
 });
 
-// Save email for recovery
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const data = emailSchema.parse(body);
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
 
-    // Rate limit check
-    const rateLimit = await checkRateLimit(data.userId, 'email_update');
-    if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.retryAfter);
+    const ipLimit = await checkIpRateLimit(request, 'email_update');
+    if (!ipLimit.allowed) {
+      return rateLimitResponse(ipLimit.retryAfter);
     }
 
-    // Check if email is already used by another user
+    const userLimit = await checkRateLimit(session.userId, 'email_update');
+    if (!userLimit.allowed) {
+      return rateLimitResponse(userLimit.retryAfter);
+    }
+
+    const body = await request.json();
+    const data = emailSchema.parse(body);
+    const email = data.email.toLowerCase();
+
     const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('id')
-      .eq('email', data.email.toLowerCase())
-      .neq('id', data.userId)
-      .single();
+      .eq('email', email)
+      .neq('id', session.userId)
+      .maybeSingle();
 
     if (existingUser) {
       return NextResponse.json(
@@ -35,24 +49,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update user with email
+    const code = generateVerificationCode();
     const { error } = await supabaseAdmin
       .from('users')
       .update({
-        email: data.email.toLowerCase(),
+        pending_email: email,
+        email_verify_hash: hashVerificationCode(code),
+        email_verify_expires_at: new Date(Date.now() + EMAIL_VERIFY_TTL_MS).toISOString(),
+        email_verify_attempts: 0,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', data.userId);
+      .eq('id', session.userId);
 
     if (error) {
       console.error('Email save error:', error);
       return NextResponse.json(
-        { error: 'Failed to save email' },
+        { error: 'Failed to start email verification' },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    await sendVerificationEmail(email, code, 'verify');
+
+    return NextResponse.json({
+      success: true,
+      pending: true,
+      email: maskEmail(email),
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -69,33 +92,36 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Get user's email status
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
-
-  if (!userId || !isValidUUID(userId)) {
-    return NextResponse.json({ error: 'Invalid or missing userId' }, { status: 400 });
-  }
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
 
   const { data: user, error } = await supabaseAdmin
     .from('users')
-    .select('email')
-    .eq('id', userId)
+    .select('email, email_verified, pending_email')
+    .eq('id', session.userId)
     .single();
 
   if (error || !user) {
-    return NextResponse.json({ email: null });
+    return NextResponse.json({ email: null, hasEmail: false, verified: false });
   }
 
-  // Return masked email for privacy
-  const email = user.email;
-  if (!email) {
-    return NextResponse.json({ email: null });
+  if (user.email && user.email_verified) {
+    return NextResponse.json({
+      email: maskEmail(user.email),
+      hasEmail: true,
+      verified: true,
+    });
   }
 
-  const [local, domain] = email.split('@');
-  const masked = local.slice(0, 2) + '***@' + domain;
+  if (user.pending_email) {
+    return NextResponse.json({
+      email: maskEmail(user.pending_email),
+      hasEmail: false,
+      verified: false,
+      pending: true,
+    });
+  }
 
-  return NextResponse.json({ email: masked, hasEmail: true });
+  return NextResponse.json({ email: null, hasEmail: false, verified: false });
 }

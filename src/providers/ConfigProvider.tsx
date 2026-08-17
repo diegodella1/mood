@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
+import useSWR from 'swr';
 import type { RecurrenceRule } from '@/lib/supabase/types';
 
 export interface WindowConfig {
@@ -58,7 +59,6 @@ export interface AppConfig {
   error: string | null;
 }
 
-// Default config (used while loading or on error)
 const DEFAULT_CONFIG: AppConfig = {
   features: {
     windows: true,
@@ -87,38 +87,37 @@ const DEFAULT_CONFIG: AppConfig = {
 
 const ConfigContext = createContext<AppConfig>(DEFAULT_CONFIG);
 
+async function fetchConfig(): Promise<Omit<AppConfig, 'isLoading' | 'error'>> {
+  const response = await fetch('/api/config');
+  if (!response.ok) {
+    throw new Error('Failed to fetch config');
+  }
+  const data = await response.json();
+  return {
+    features: data.features || DEFAULT_CONFIG.features,
+    windows: data.windows || DEFAULT_CONFIG.windows,
+    customWindows: data.customWindows || DEFAULT_CONFIG.customWindows,
+    privacy: data.privacy || DEFAULT_CONFIG.privacy,
+  };
+}
+
 export function ConfigProvider({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
+  const { data, error, isLoading } = useSWR('/api/config', fetchConfig, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60_000,
+    fallbackData: {
+      features: DEFAULT_CONFIG.features,
+      windows: DEFAULT_CONFIG.windows,
+      customWindows: DEFAULT_CONFIG.customWindows,
+      privacy: DEFAULT_CONFIG.privacy,
+    },
+  });
 
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const response = await fetch('/api/config');
-        if (!response.ok) {
-          throw new Error('Failed to fetch config');
-        }
-        const data = await response.json();
-
-        setConfig({
-          features: data.features || DEFAULT_CONFIG.features,
-          windows: data.windows || DEFAULT_CONFIG.windows,
-          customWindows: data.customWindows || DEFAULT_CONFIG.customWindows,
-          privacy: data.privacy || DEFAULT_CONFIG.privacy,
-          isLoading: false,
-          error: null,
-        });
-      } catch (error) {
-        console.error('Config fetch error:', error);
-        setConfig({
-          ...DEFAULT_CONFIG,
-          isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to load config',
-        });
-      }
-    };
-
-    fetchConfig();
-  }, []);
+  const config: AppConfig = {
+    ...(data ?? DEFAULT_CONFIG),
+    isLoading,
+    error: error instanceof Error ? error.message : null,
+  };
 
   return (
     <ConfigContext.Provider value={config}>
@@ -131,12 +130,10 @@ export function useConfig() {
   return useContext(ConfigContext);
 }
 
-// Helper to get window types from config
 export function getWindowTypes(config: AppConfig): string[] {
   return Object.keys(config.windows.schedule);
 }
 
-// Helper to get window info
 export function getWindowInfo(config: AppConfig, windowType: string): { start: number; end: number } | null {
   return config.windows.schedule[windowType] || null;
 }
