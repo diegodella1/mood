@@ -25,58 +25,18 @@ interface PulseMapProps {
 // Cache for geocoded cities
 const geocodeCache: Record<string, [number, number]> = {};
 
-// Popular cities with pre-defined coordinates (fallback)
-const KNOWN_CITIES: Record<string, [number, number]> = {
-  'New York': [-74.006, 40.7128],
-  'Los Angeles': [-118.2437, 34.0522],
-  'Chicago': [-87.6298, 41.8781],
-  'London': [-0.1276, 51.5074],
-  'Paris': [2.3522, 48.8566],
-  'Tokyo': [139.6917, 35.6895],
-  'Sydney': [151.2093, -33.8688],
-  'Dubai': [55.2708, 25.2048],
-  'Singapore': [103.8198, 1.3521],
-  'Hong Kong': [114.1694, 22.3193],
-  'Berlin': [13.405, 52.52],
-  'Madrid': [-3.7038, 40.4168],
-  'Rome': [12.4964, 41.9028],
-  'Amsterdam': [4.9041, 52.3676],
-  'Toronto': [-79.3832, 43.6532],
-  'Vancouver': [-123.1207, 49.2827],
-  'São Paulo': [-46.6333, -23.5505],
-  'Buenos Aires': [-58.3816, -34.6037],
-  'Mexico City': [-99.1332, 19.4326],
-  'Mumbai': [72.8777, 19.076],
-  'Delhi': [77.1025, 28.7041],
-  'Bangkok': [100.5018, 13.7563],
-  'Seoul': [126.978, 37.5665],
-  'Moscow': [37.6173, 55.7558],
-  'Cairo': [31.2357, 30.0444],
-  'Lagos': [3.3792, 6.5244],
-  'Johannesburg': [28.0473, -26.2041],
-  'Melbourne': [144.9631, -37.8136],
-  'Shanghai': [121.4737, 31.2304],
-  'Beijing': [116.4074, 39.9042],
-};
-
 function geocodeCity(cityId: string): [number, number] | null {
   // Check cache first
   if (geocodeCache[cityId]) {
     return geocodeCache[cityId];
   }
 
-  // Primary: look up by slug ID from cities-geo (matches DB city_id format)
+  // Primary: look up by slug ID or display name from the shared catalog
   const geoCoords = getCityCoords(cityId);
   if (geoCoords) {
     const coords: [number, number] = [geoCoords.lng, geoCoords.lat];
     geocodeCache[cityId] = coords;
     return coords;
-  }
-
-  // Fallback: check KNOWN_CITIES by display name
-  if (KNOWN_CITIES[cityId]) {
-    geocodeCache[cityId] = KNOWN_CITIES[cityId];
-    return KNOWN_CITIES[cityId];
   }
 
   return null;

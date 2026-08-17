@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/session';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+
     const { id: userId } = await params;
 
     // Validate UUID format
@@ -17,12 +21,7 @@ export async function GET(
       );
     }
 
-    // Auth check: Only allow users to fetch their own reactions
-    // Get userId from header (set by client) or query param
-    const requestingUserId = request.headers.get('x-user-id') ||
-      request.nextUrl.searchParams.get('requesterId');
-
-    if (requestingUserId !== userId) {
+    if (session.userId !== userId) {
       return NextResponse.json(
         { error: 'Forbidden: Can only view your own reactions' },
         { status: 403 }

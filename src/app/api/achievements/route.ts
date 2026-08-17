@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { isValidUUID } from '@/lib/api-utils';
+import { requireUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 // Get user's secret achievements
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get('userId');
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
   const includeHints = request.nextUrl.searchParams.get('hints') === 'true';
-
-  if (!userId || !isValidUUID(userId)) {
-    return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });
-  }
 
   try {
     // Get earned achievements

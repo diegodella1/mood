@@ -29,7 +29,10 @@ export default function ProfilePage() {
   // Email state
   const [email, setEmail] = useState('');
   const [savedEmail, setSavedEmail] = useState<string | null>(null);
+  const [emailPending, setEmailPending] = useState(false);
+  const [verifyCode, setVerifyCode] = useState('');
   const [isEmailSaving, setIsEmailSaving] = useState(false);
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSuccess, setEmailSuccess] = useState(false);
 
@@ -62,11 +65,15 @@ export default function ProfilePage() {
   // Fetch existing email on mount
   useEffect(() => {
     if (user?.id) {
-      fetch(`/api/users/email?userId=${user.id}`)
+      fetch('/api/users/email')
         .then((res) => res.json())
         .then((data) => {
-          if (data.email) {
+          if (data.email && data.verified) {
             setSavedEmail(data.email);
+            setEmailPending(false);
+          } else if (data.pending && data.email) {
+            setSavedEmail(data.email);
+            setEmailPending(true);
           }
         })
         .catch(console.error);
@@ -149,7 +156,7 @@ export default function ProfilePage() {
       const response = await fetch('/api/users/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email }),
+        body: JSON.stringify({ email }),
       });
 
       if (!response.ok) {
@@ -157,9 +164,9 @@ export default function ProfilePage() {
         throw new Error(data.error || 'Failed to save email');
       }
 
-      // Mask the email for display
-      const [local, domain] = email.split('@');
-      setSavedEmail(local.slice(0, 2) + '***@' + domain);
+      const data = await response.json();
+      setSavedEmail(data.email);
+      setEmailPending(true);
       setEmail('');
       setEmailSuccess(true);
       setTimeout(() => setEmailSuccess(false), 3000);
@@ -167,6 +174,35 @@ export default function ProfilePage() {
       setEmailError(err instanceof Error ? err.message : 'Failed to save email');
     } finally {
       setIsEmailSaving(false);
+    }
+  };
+
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyCode.trim()) return;
+
+    setIsVerifyingEmail(true);
+    setEmailError(null);
+
+    try {
+      const response = await fetch('/api/users/email/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: verifyCode }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Invalid code');
+      }
+      setSavedEmail(data.email);
+      setEmailPending(false);
+      setVerifyCode('');
+      setEmailSuccess(true);
+      setTimeout(() => setEmailSuccess(false), 3000);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Failed to verify email');
+    } finally {
+      setIsVerifyingEmail(false);
     }
   };
 
@@ -847,24 +883,69 @@ export default function ProfilePage() {
             Add your email to recover your streak if you change devices
           </p>
 
-          {savedEmail ? (
+          {savedEmail && !emailPending ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 glass-card-subtle rounded-xl">
                 <div className="flex items-center gap-3">
                   <span className="text-xl">✅</span>
                   <div>
-                    <p className="text-sm text-[var(--color-text-primary)]">Recovery email saved</p>
+                    <p className="text-sm text-[var(--color-text-primary)]">Recovery email verified</p>
                     <p className="text-xs text-[var(--color-text-muted)] font-mono">{savedEmail}</p>
                   </div>
                 </div>
               </div>
               <button
-                onClick={() => setSavedEmail(null)}
+                onClick={() => {
+                  setSavedEmail(null);
+                  setEmailPending(false);
+                }}
                 className="text-sm text-[var(--color-aurora-cyan)] hover:underline"
               >
                 Change email
               </button>
             </div>
+          ) : emailPending ? (
+            <form onSubmit={handleVerifyEmail} className="space-y-4">
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                We sent a code to {savedEmail}. Enter it to confirm this email.
+              </p>
+              <input
+                type="text"
+                inputMode="text"
+                autoComplete="one-time-code"
+                value={verifyCode}
+                onChange={(e) => setVerifyCode(e.target.value.toUpperCase())}
+                placeholder="8-character code"
+                maxLength={12}
+                required
+                className="w-full px-4 py-3 bg-[var(--surface-glass)] border border-[var(--surface-border)] rounded-xl text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-aurora-cyan)] font-mono tracking-widest"
+              />
+              {emailError && (
+                <p className="text-sm text-red-400">{emailError}</p>
+              )}
+              {emailSuccess && (
+                <p className="text-sm text-[var(--color-aurora-teal)]">Check your inbox for the code.</p>
+              )}
+              <motion.button
+                type="submit"
+                disabled={isVerifyingEmail || !verifyCode}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full py-3 aurora-gradient rounded-xl font-medium text-white disabled:opacity-50"
+              >
+                {isVerifyingEmail ? 'Verifying...' : 'Verify email'}
+              </motion.button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSavedEmail(null);
+                  setEmailPending(false);
+                }}
+                className="w-full text-sm text-[var(--color-aurora-cyan)] hover:underline"
+              >
+                Use a different email
+              </button>
+            </form>
           ) : (
             <form onSubmit={handleSaveEmail} className="space-y-4">
               <input
@@ -881,7 +962,7 @@ export default function ProfilePage() {
               )}
 
               {emailSuccess && (
-                <p className="text-sm text-[var(--color-aurora-teal)]">Email saved successfully!</p>
+                <p className="text-sm text-[var(--color-aurora-teal)]">Code sent. Check your inbox.</p>
               )}
 
               <motion.button
@@ -891,7 +972,7 @@ export default function ProfilePage() {
                 whileTap={{ scale: 0.98 }}
                 className="w-full py-3 aurora-gradient rounded-xl font-medium text-white disabled:opacity-50"
               >
-                {isEmailSaving ? 'Saving...' : 'Save Recovery Email'}
+                {isEmailSaving ? 'Sending code...' : 'Send verification code'}
               </motion.button>
             </form>
           )}

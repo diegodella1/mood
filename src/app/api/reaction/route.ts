@@ -3,20 +3,25 @@ import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { REACTIONS } from '@/lib/constants';
 import { checkRateLimit, rateLimitResponse } from '@/lib/api-utils';
+import { requireUser } from '@/lib/session';
 
 const reactionSchema = z.object({
   pulseId: z.string().uuid(),
-  fromUserId: z.string().uuid(),
+  fromUserId: z.string().uuid().optional(),
   emoji: z.enum(REACTIONS),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const fromUserId = session.userId;
+
     const body = await request.json();
     const data = reactionSchema.parse(body);
 
     // Rate limit check
-    const rateLimit = await checkRateLimit(data.fromUserId, 'reaction');
+    const rateLimit = await checkRateLimit(fromUserId, 'reaction');
     if (!rateLimit.allowed) {
       return rateLimitResponse(rateLimit.retryAfter);
     }
@@ -36,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Can't react to your own pulse
-    if (pulse.user_id === data.fromUserId) {
+    if (pulse.user_id === fromUserId) {
       return NextResponse.json(
         { error: 'Cannot react to your own pulse' },
         { status: 400 }
@@ -47,7 +52,7 @@ export async function POST(request: NextRequest) {
     const { data: existingWindowReaction } = await supabaseAdmin
       .from('reactions')
       .select('id, pulses!inner(window_id)')
-      .eq('from_user_id', data.fromUserId)
+      .eq('from_user_id', fromUserId)
       .eq('pulses.window_id', pulse.window_id)
       .limit(1)
       .maybeSingle();
@@ -64,7 +69,7 @@ export async function POST(request: NextRequest) {
       .from('reactions')
       .insert({
         pulse_id: data.pulseId,
-        from_user_id: data.fromUserId,
+        from_user_id: fromUserId,
         emoji: data.emoji,
       })
       .select()

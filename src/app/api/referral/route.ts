@@ -1,23 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { isValidUUID } from '@/lib/api-utils';
+import { requireUser } from '@/lib/session';
 
 const applyReferralSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   referralCode: z.string().min(4).max(10),
 });
 
 // Apply a referral code to a user
 export async function POST(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const userId = session.userId;
+
     const body = await request.json();
     const data = applyReferralSchema.parse(body);
 
     // Process referral via database function
     const { data: result, error } = await supabaseAdmin.rpc('process_referral', {
       p_referral_code: data.referralCode.toUpperCase(),
-      p_new_user_id: data.userId,
+      p_new_user_id: userId,
     });
 
     if (error) {
@@ -58,14 +62,9 @@ export async function POST(request: NextRequest) {
 
 // Get user's referral info
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get('userId');
-
-  if (!userId || !isValidUUID(userId)) {
-    return NextResponse.json(
-      { error: 'Invalid or missing userId' },
-      { status: 400 }
-    );
-  }
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
 
   try {
     // Get user's referral code and stats

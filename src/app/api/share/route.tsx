@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
               marginBottom: 8,
             }}
           >
-            I'm feeling
+            I&apos;m feeling
           </div>
 
           {/* Streak with aura */}

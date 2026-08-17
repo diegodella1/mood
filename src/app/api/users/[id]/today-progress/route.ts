@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { getCurrentDateInTimezone } from '@/lib/timezone';
+import { requireUser } from '@/lib/session';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+
   const { id: userId } = await params;
+
+  if (session.userId !== userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   try {
     // Get user's timezone

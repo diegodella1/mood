@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { isValidUUID } from '@/lib/api-utils';
+import { requireUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 60; // Cache for 1 minute
 
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get('userId');
   const type = request.nextUrl.searchParams.get('type') || 'cities'; // 'cities' | 'streaks' | 'user'
 
   try {
-    if (type === 'user' && userId && isValidUUID(userId)) {
+    if (type === 'user') {
+      const session = requireUser(request);
+      if (!session.ok) return session.response;
+      const userId = session.userId;
+
       // Get user's personal rank
       const { data: rankData, error: rankError } = await supabaseAdmin.rpc(
         'get_user_city_rank',

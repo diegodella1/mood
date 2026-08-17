@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/xp?userId=<uuid>
+ * GET /api/xp
  *
- * Returns user's XP, level, progress to next level, and recent transactions.
+ * Returns the session user's XP, level, progress to next level, and recent transactions.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
-
-  if (!userId) {
-    return NextResponse.json({ error: 'userId required' }, { status: 400 });
-  }
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
 
   try {
     // Get user XP data

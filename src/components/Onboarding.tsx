@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CITIES } from '@/lib/cities';
+import { POPULAR_CITIES, searchCities, type CityGeo } from '@/lib/cities-geo';
 
 interface OnboardingProps {
-  onComplete: (city?: string) => void;
+  onComplete: (cityId?: string) => void;
 }
 
 const ONBOARDING_STEPS = [
@@ -36,30 +36,25 @@ const springSmooth = { type: 'spring' as const, damping: 25, stiffness: 200 };
 const springBouncy = { type: 'spring' as const, damping: 12, stiffness: 100 };
 
 // Popular cities for quick selection
-const POPULAR_CITIES = [
-  'Buenos Aires', 'New York', 'London', 'Tokyo', 'São Paulo',
-  'Mexico City', 'Madrid', 'Paris', 'Berlin', 'Sydney'
-];
-
 export function Onboarding({ onComplete }: OnboardingProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<CityGeo | null>(null);
   const [citySearch, setCitySearch] = useState('');
 
   const filteredCities = citySearch.length > 1
-    ? CITIES.filter(c => c.toLowerCase().includes(citySearch.toLowerCase())).slice(0, 6)
+    ? searchCities(citySearch, 8)
     : POPULAR_CITIES;
 
   const handleNext = () => {
     if (currentStep < ONBOARDING_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      onComplete(selectedCity || undefined);
+      onComplete(selectedCity?.cityId);
     }
   };
 
   const handleSkip = () => {
-    onComplete(selectedCity || undefined);
+    onComplete(selectedCity?.cityId);
   };
 
   const step = ONBOARDING_STEPS[currentStep];
@@ -147,22 +142,23 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                   {filteredCities.map((city) => (
                     <button
-                      key={city}
+                      key={city.cityId}
+                      type="button"
                       onClick={() => setSelectedCity(city)}
                       className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                        selectedCity === city
+                        selectedCity?.cityId === city.cityId
                           ? 'aurora-gradient text-white'
                           : 'glass-card-subtle text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                       }`}
                     >
-                      {city}
+                      {city.name}
                     </button>
                   ))}
                 </div>
 
                 {selectedCity && (
                   <p className="text-center text-[var(--color-aurora-cyan)] text-sm">
-                    Selected: {selectedCity}
+                    Selected: {selectedCity.name}
                   </p>
                 )}
               </motion.div>

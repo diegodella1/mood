@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { sendNotificationToUsers } from '@/lib/onesignal/server';
+import { requireUser } from '@/lib/session';
 
 const optinSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const userId = session.userId;
+
     const body = await request.json();
-    const data = optinSchema.parse(body);
+    optinSchema.parse(body);
 
     const { error } = await supabaseAdmin
       .from('users')
@@ -18,7 +23,7 @@ export async function POST(request: NextRequest) {
         push_opt_in: true,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', data.userId);
+      .eq('id', userId);
 
     if (error) {
       console.error('Push opt-in error:', error);
@@ -38,9 +43,9 @@ export async function POST(request: NextRequest) {
             url: '/',
             ttl: 86400,
             web_push_topic: 'welcome',
-            idempotency_key: `welcome-${data.userId}`,
+            idempotency_key: `welcome-${userId}`,
           },
-          [data.userId],
+          [userId],
         );
       } catch (err) {
         console.error('Welcome push error:', err);

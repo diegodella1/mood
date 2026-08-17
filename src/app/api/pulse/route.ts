@@ -4,13 +4,14 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 import { isValidEmoji } from '@/lib/constants';
 import { parseWindowId } from '@/lib/timezone';
 import type { CustomWindow, RecurrenceRule } from '@/lib/supabase/types';
+import { requireUser } from '@/lib/session';
 
 const pulseSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   windowId: z.string(),
   mood: z.string().refine(isValidEmoji, { message: 'Invalid emoji' }),
   note: z.string().max(280).optional(),
-  customWindowId: z.string().uuid().optional(), // Optional: ID of custom window if submitting during event
+  customWindowId: z.string().uuid().optional(),
 });
 
 // Base XP for a pulse (used for custom window multiplier)
@@ -18,6 +19,10 @@ const BASE_PULSE_XP = 10;
 
 export async function POST(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const userId = session.userId;
+
     const body = await request.json();
     const data = pulseSchema.parse(body);
 
@@ -26,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     // Check rate limit (10 requests per minute per user)
     const { data: allowed } = await supabaseAdmin.rpc('check_rate_limit', {
-      p_identifier: data.userId,
+      p_identifier: userId,
       p_endpoint: 'pulse',
       p_max_requests: 10,
       p_window_seconds: 60,
@@ -43,7 +48,7 @@ export async function POST(request: NextRequest) {
     const { data: result, error: pulseError } = await supabaseAdmin.rpc(
       'submit_pulse_atomic',
       {
-        p_user_id: data.userId,
+        p_user_id: userId,
         p_window_id: data.windowId,
         p_mood: data.mood,
         p_pulse_date: date,
@@ -96,7 +101,7 @@ export async function POST(request: NextRequest) {
     const pulseXpAmount = isFirstPulse ? BASE_PULSE_XP * 2 : BASE_PULSE_XP;
 
     const xpPromise = supabaseAdmin.rpc('award_xp', {
-      p_user_id: data.userId,
+      p_user_id: userId,
       p_amount: pulseXpAmount,
       p_source: isFirstPulse ? 'first_pulse' : 'pulse',
       p_metadata: { window_id: data.windowId, mood: data.mood, ...(isFirstPulse ? { bonus: '2x' } : {}) },
@@ -112,7 +117,7 @@ export async function POST(request: NextRequest) {
     supabaseAdmin
       .from('users')
       .update({ last_pulse_date: todayDate, days_inactive: 0, escalation_level: 0 })
-      .eq('id', data.userId)
+      .eq('id', userId)
       .then(({ error: updateErr }) => {
         if (updateErr) console.error('last_pulse_date update error:', updateErr);
       });
@@ -128,7 +133,7 @@ export async function POST(request: NextRequest) {
 
     if (data.customWindowId || data.windowId.startsWith('custom_')) {
       const customWindowData = await processCustomWindowParticipation(
-        data.userId,
+        userId,
         data.customWindowId || data.windowId,
         pulseResult?.pulse_id,
         date
@@ -143,7 +148,7 @@ export async function POST(request: NextRequest) {
       data.windowId,
       data.mood,
       pulseResult?.pulse_id,
-      data.userId
+      userId
     ).catch((err) => {
       console.error('Context fetch error:', err);
       return {};
@@ -153,12 +158,12 @@ export async function POST(request: NextRequest) {
     // Apply lucky drop boost from custom window if applicable
     const luckyDropBoostFactor = customWindowBonus?.luckyDropBoost || 1;
     const luckyDropPromise = supabaseAdmin.rpc('roll_lucky_drop', {
-      p_user_id: data.userId,
+      p_user_id: userId,
       p_boost_factor: luckyDropBoostFactor,
     });
-    const friendStreaksPromise = supabaseAdmin.rpc('update_friend_streaks', { p_user_id: data.userId });
+    const friendStreaksPromise = supabaseAdmin.rpc('update_friend_streaks', { p_user_id: userId });
     const achievementsPromise = supabaseAdmin.rpc('check_secret_achievements', {
-      p_user_id: data.userId,
+      p_user_id: userId,
       p_context: {
         hour: new Date().getHours(),
         minute: new Date().getMinutes(),
@@ -169,14 +174,14 @@ export async function POST(request: NextRequest) {
 
     // Fire and forget for activity logging
     supabaseAdmin.from('friend_activity').insert({
-      user_id: data.userId,
+      user_id: userId,
       activity_type: 'pulse',
       emoji: data.mood,
       metadata: { window_id: data.windowId, ...(data.note ? { note: data.note } : {}) },
     });
 
     supabaseAdmin.rpc('update_active_session', {
-      p_user_id: data.userId,
+      p_user_id: userId,
       p_window: data.windowId.split('_')[1] || 'unknown',
       p_is_pulsing: false,
     });
@@ -184,12 +189,15 @@ export async function POST(request: NextRequest) {
     // Notify followers (fire and forget)
     fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/notifications/friend-pulse`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.CRON_SECRET || ''}`,
+      },
       body: JSON.stringify({
-        userId: data.userId,
+        userId,
         emoji: data.mood,
       }),
-    }).catch(() => {}); // Silent fail
+    }).catch(() => {});
 
     // Await the important ones with proper error handling
     const [luckyDropResult, friendStreaksResult, achievementsResult, xpResultData] = await Promise.all([
@@ -207,7 +215,7 @@ export async function POST(request: NextRequest) {
       id: pulseResult?.pulse_id,
       mood: data.mood,
       window_id: data.windowId,
-      user_id: data.userId,
+      user_id: userId,
       // Streak info from atomic function
       streak_days: pulseResult?.new_streak,
       shield_used: pulseResult?.shield_used,
@@ -246,7 +254,7 @@ export async function POST(request: NextRequest) {
 }
 
 const changeMoodSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   windowId: z.string(),
   newMood: z.string().refine(isValidEmoji, { message: 'Invalid emoji' }),
 });
@@ -256,12 +264,16 @@ const changeMoodSchema = z.object({
  */
 export async function PATCH(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const userId = session.userId;
+
     const body = await request.json();
     const data = changeMoodSchema.parse(body);
 
     // Rate limit
     const { data: allowed } = await supabaseAdmin.rpc('check_rate_limit', {
-      p_identifier: data.userId,
+      p_identifier: userId,
       p_endpoint: 'pulse_change',
       p_max_requests: 5,
       p_window_seconds: 60,
@@ -278,7 +290,7 @@ export async function PATCH(request: NextRequest) {
     const { data: result, error: changeError } = await supabaseAdmin.rpc(
       'change_pulse_mood',
       {
-        p_user_id: data.userId,
+        p_user_id: userId,
         p_window_id: data.windowId,
         p_new_mood: data.newMood,
       }

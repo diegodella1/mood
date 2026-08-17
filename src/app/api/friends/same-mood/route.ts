@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
+
   const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
   const windowId = searchParams.get('windowId');
   const mood = searchParams.get('mood');
 
-  if (!userId || !windowId || !mood) {
-    return NextResponse.json({ error: 'userId, windowId, and mood required' }, { status: 400 });
+  if (!windowId || !mood) {
+    return NextResponse.json({ error: 'windowId and mood required' }, { status: 400 });
   }
 
   try {

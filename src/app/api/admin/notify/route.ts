@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { sendNotificationToAll, sendNotificationByTags } from '@/lib/onesignal/server';
+import { verifyAdminAuth, unauthorizedResponse } from '@/lib/admin/auth';
 
 const notifySchema = z.object({
   title: z.string().min(1).max(100),
@@ -14,21 +15,9 @@ const notifySchema = z.object({
   })).optional(),
 });
 
-function verifyAdminSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const adminSecret = process.env.ADMIN_SECRET;
-
-  if (!adminSecret) {
-    console.warn('ADMIN_SECRET not configured');
-    return false;
-  }
-
-  return authHeader === `Bearer ${adminSecret}`;
-}
-
 export async function POST(request: NextRequest) {
-  if (!verifyAdminSecret(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!verifyAdminAuth(request)) {
+    return unauthorizedResponse();
   }
 
   try {

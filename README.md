@@ -4,123 +4,101 @@ The emotional thermometer of the world. Share how you feel with one tap and see 
 
 ## Features
 
-- **3 Daily Windows**: Morning, Afternoon, Night - pulse during each window
-- **Streaks & Auras**: Build your streak, unlock Fire (7d), Lightning (30d), Diamond (100d - permanent!)
-- **Friends System**: Follow friends, create shared streaks (Snapchat-style)
-- **Lucky Drops**: 5% chance per pulse to win shields, special emojis
-- **12 Secret Achievements**: Hidden challenges to discover
+- **3 Daily Windows**: Morning, Afternoon, Night — pulse during each window
+- **Streaks & Auras**: Build your streak, unlock Fire (7d), Lightning (30d), Diamond (100d)
+- **Friends System**: Follow friends, create shared streaks
+- **Lucky Drops**: Chance per pulse to win shields or special emojis
+- **Secret Achievements**: Hidden challenges to discover
 - **Live Counter**: See who's pulsing right now
-- **World Map**: Visualize global emotions in real-time
+- **World Map**: Visualize global emotions
 - **City Leaderboards**: Compete with your city
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14, React 18, Framer Motion, Tailwind CSS
-- **Backend**: Next.js API Routes, Supabase (PostgreSQL)
+- **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS 4, Framer Motion, SWR
+- **Backend**: Next.js Route Handlers, Supabase (PostgreSQL + RLS)
+- **Auth**: Signed HttpOnly session cookie (anonymous users) + email verification for recovery
 - **Push Notifications**: OneSignal
 - **Maps**: Mapbox GL
-- **Hosting**: Vercel
+- **Hosting**: Vercel (or Docker / self-hosted)
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- Supabase account
-- OneSignal account
-- Mapbox account (optional, for maps)
+- Node.js 20+
+- Supabase project
+- OneSignal app
+- Mapbox token (optional, for maps)
+- Resend API key (optional locally, required for email recovery in production)
 
 ### Installation
 
-1. Clone the repository:
 ```bash
 git clone https://github.com/your-username/global-pulse.git
 cd global-pulse
-```
-
-2. Install dependencies:
-```bash
 npm install
-```
-
-3. Copy environment variables:
-```bash
 cp .env.example .env.local
 ```
 
-4. Fill in your `.env.local` with your credentials (see `.env.example` for details)
+Fill `.env.local` (see `.env.example`). Generate secrets with `openssl rand -hex 32`.
 
-5. Run database migrations:
+Run database migrations:
+
 ```bash
-# Using Supabase CLI
 npx supabase db push
-
-# Or manually run SQL files from supabase/migrations/ in Supabase SQL Editor
+# or run SQL files from supabase/migrations/ in order in the Supabase SQL Editor
 ```
 
-6. Start the development server:
+Start the app:
+
 ```bash
 npm run dev
 ```
 
-7. Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000).
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests (Vitest) |
 
 ## Database Migrations
 
-Migrations are in `supabase/migrations/`. Run them in order:
+Migrations live in `supabase/migrations/` and run in numeric order (`001` … `019`).
 
-1. `001` - Initial schema
-2. `006` - Atomic functions
-3. `009` - Security & performance
-4. `010` - Viral features (referrals, leaderboards)
-5. `011` - Social features (friends, streaks, drops, achievements)
+`019_rls_and_session_hardening.sql` is required after this release: it tightens RLS, protects recovery codes, and revokes dangerous `anon` RPC grants.
+
+## Identity & Security
+
+- User identity is a **signed HttpOnly cookie** (`gp_session`), not a client-supplied UUID.
+- Existing users are migrated once from `localStorage` if that UUID already exists in the database.
+- Email must be **verified** before it can be used for account recovery.
+- Recovery codes are 8-character, hashed at rest, and rate-limited by IP.
+- Admin uses an HttpOnly cookie (`gp_admin`) issued by `POST /api/admin/session`.
+- Cron and internal notification routes require `Authorization: Bearer CRON_SECRET`.
 
 ## Cron Jobs
 
-Configure in `vercel.json` for production:
-
-```json
-{
-  "crons": [
-    { "path": "/api/cron/cleanup", "schedule": "0 * * * *" },
-    { "path": "/api/cron/nudges", "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/friend-streaks", "schedule": "0 0 * * *" },
-    { "path": "/api/cron/cleanup-social", "schedule": "0 * * * *" }
-  ]
-}
-```
+Configured in `vercel.json` (12 jobs): `tick-5m`, `tick-10m`, `tick-15m`, `nudges`, `custom-windows`, `cleanup`, `cleanup-social`, `friend-streaks`, `battles`, `flips`, `shifts`, `escalation`.
 
 ## Admin Panel
 
-Access at `/admin` with your `ADMIN_SECRET`.
-
-Features:
-- User management
-- Event creation
-- City battles
-- Push notifications
-- System alerts
-- Configuration
+Access `/admin/login` and sign in with `ADMIN_SECRET`. The secret is never stored in `localStorage`.
 
 ## Documentation
 
-- `/guide` - Game guide for players
-- `/about` - About Global Pulse
-- `/docs/operations` - Technical operations manual
-- `docs/GAME_GUIDE.md` - Full game documentation
-- `docs/OPERATIONS_MANUAL.md` - Ops documentation
-
-## Deploy to Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/global-pulse)
-
-1. Connect your GitHub repo
-2. Add environment variables in Vercel dashboard
-3. Deploy!
+- `/guide` — Game guide
+- `/about` — About Global Pulse
+- `/docs/operations` — Operations notes
+- `docs/GAME_GUIDE.md` — Full game documentation
+- `docs/OPERATIONS_MANUAL.md` — Ops documentation
 
 ## Environment Variables
-
-See `.env.example` for all required variables:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -128,10 +106,13 @@ See `.env.example` for all required variables:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key |
 | `NEXT_PUBLIC_ONESIGNAL_APP_ID` | Yes | OneSignal App ID |
-| `ONESIGNAL_REST_API_KEY` | Yes | OneSignal REST API Key |
-| `CRON_SECRET` | Yes | Secret for cron job auth |
-| `ADMIN_SECRET` | Yes | Secret for admin panel |
+| `ONESIGNAL_REST_API_KEY` | Yes | OneSignal REST API key |
+| `CRON_SECRET` | Yes | Secret for cron + internal routes (min 32 chars) |
+| `ADMIN_SECRET` | Yes | Secret for admin login (min 32 chars) |
+| `SESSION_SECRET` | Recommended | Signs user/admin cookies (falls back to `CRON_SECRET`) |
+| `RESEND_API_KEY` | Prod | Sends verification and recovery emails |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Mapbox token for maps |
+| `NEXT_PUBLIC_APP_URL` | No | Public app URL |
 
 ## License
 

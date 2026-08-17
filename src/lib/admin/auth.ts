@@ -1,68 +1,40 @@
 import { NextRequest } from 'next/server';
-import crypto from 'crypto';
+import { verifyBearerToken } from '@/lib/crypto-auth';
+import { getClientIp, hasAdminSession } from '@/lib/session';
 
 /**
- * Verifies admin authentication using Bearer token
- * Token should match ADMIN_SECRET environment variable
- * Uses timing-safe comparison to prevent timing attacks
+ * Verifies admin authentication via HttpOnly cookie (preferred)
+ * or Bearer ADMIN_SECRET (scripts / legacy).
  */
 export function verifyAdminAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
+  if (hasAdminSession(request)) {
+    return true;
+  }
+
   const adminSecret = process.env.ADMIN_SECRET;
-
-  if (!authHeader || !adminSecret) {
+  if (!adminSecret || adminSecret.length < 32) {
     return false;
   }
 
-  const [scheme, token] = authHeader.split(' ');
-
-  if (scheme !== 'Bearer' || !token) {
-    return false;
-  }
-
-  // Use timing-safe comparison to prevent timing attacks
-  try {
-    const tokenBuffer = Buffer.from(token);
-    const secretBuffer = Buffer.from(adminSecret);
-
-    // If lengths differ, comparison will fail but we still compare to prevent timing leak
-    if (tokenBuffer.length !== secretBuffer.length) {
-      // Compare with itself to maintain constant time
-      crypto.timingSafeEqual(secretBuffer, secretBuffer);
-      return false;
-    }
-
-    return crypto.timingSafeEqual(tokenBuffer, secretBuffer);
-  } catch {
-    return false;
-  }
+  return verifyBearerToken(request.headers.get('authorization'), adminSecret);
 }
 
-/**
- * Extracts admin identifier from request for audit logging
- */
 export function getAdminIdentifier(request: NextRequest): string {
+  if (hasAdminSession(request)) {
+    return 'admin_session';
+  }
   const authHeader = request.headers.get('authorization');
   if (authHeader) {
-    // Hash or truncate the token for audit logs
     const token = authHeader.split(' ')[1] || '';
     return `admin_${token.slice(0, 8)}`;
   }
   return 'unknown';
 }
 
-/**
- * Get client IP for audit logging
- */
 export function getClientIP(request: NextRequest): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-         request.headers.get('x-real-ip') ||
-         'unknown';
+  return getClientIp(request);
 }
 
-/**
- * Unauthorized response helper
- */
 export function unauthorizedResponse() {
   return Response.json(
     { error: 'Unauthorized' },

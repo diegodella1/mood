@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { isValidUUID } from '@/lib/api-utils';
+import { requireUser } from '@/lib/session';
 
 // Get unclaimed drops for a user
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get('userId');
-
-  if (!userId || !isValidUUID(userId)) {
-    return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });
-  }
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
 
   try {
     const { data: drops, error } = await supabaseAdmin
@@ -42,17 +40,21 @@ export async function GET(request: NextRequest) {
 
 // Claim a drop
 const claimSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   dropId: z.string().uuid(),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const userId = session.userId;
+
     const body = await request.json();
     const data = claimSchema.parse(body);
 
     const { data: result, error } = await supabaseAdmin.rpc('claim_lucky_drop', {
-      p_user_id: data.userId,
+      p_user_id: userId,
       p_drop_id: data.dropId,
     });
 

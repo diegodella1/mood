@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/server';
-import { isValidUUID } from '@/lib/api-utils';
+import { requireUser } from '@/lib/session';
 
 // Follow a user
 const followSchema = z.object({
-  followerId: z.string().uuid(),
+  followerId: z.string().uuid().optional(),
   followingId: z.string().uuid(),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const followerId = session.userId;
+
     const body = await request.json();
     const data = followSchema.parse(body);
 
     const { data: result, error } = await supabaseAdmin.rpc('follow_user', {
-      p_follower_id: data.followerId,
+      p_follower_id: followerId,
       p_following_id: data.followingId,
     });
 
@@ -47,11 +51,15 @@ export async function POST(request: NextRequest) {
 // Unfollow a user
 export async function DELETE(request: NextRequest) {
   try {
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const followerId = session.userId;
+
     const body = await request.json();
     const data = followSchema.parse(body);
 
     const { data: result, error } = await supabaseAdmin.rpc('unfollow_user', {
-      p_follower_id: data.followerId,
+      p_follower_id: followerId,
       p_following_id: data.followingId,
     });
 
@@ -72,12 +80,10 @@ export async function DELETE(request: NextRequest) {
 
 // Get followers/following lists
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get('userId');
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
   const type = request.nextUrl.searchParams.get('type') || 'following'; // 'followers' | 'following' | 'mutual'
-
-  if (!userId || !isValidUUID(userId)) {
-    return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });
-  }
 
   try {
     if (type === 'followers') {

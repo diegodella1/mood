@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/challenges?userId=<uuid>
+ * GET /api/challenges
  *
- * Returns today's daily challenges with the user's progress.
+ * Returns today's daily challenges with the session user's progress.
  * If the user doesn't have challenge records yet, creates them.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
-
-  if (!userId) {
-    return NextResponse.json({ error: 'userId required' }, { status: 400 });
-  }
+  const session = requireUser(request);
+  if (!session.ok) return session.response;
+  const userId = session.userId;
 
   try {
     const today = new Date().toISOString().split('T')[0];
@@ -118,16 +116,20 @@ async function buildResponse(
  * POST /api/challenges
  *
  * Claim XP for a completed challenge.
- * Body: { userId: string, challengeId: string }
+ * Body: { challengeId: string }
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, challengeId } = body;
+    const session = requireUser(request);
+    if (!session.ok) return session.response;
+    const userId = session.userId;
 
-    if (!userId || !challengeId) {
+    const body = await request.json();
+    const { challengeId } = body;
+
+    if (!challengeId) {
       return NextResponse.json(
-        { error: 'userId and challengeId required' },
+        { error: 'challengeId required' },
         { status: 400 },
       );
     }

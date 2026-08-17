@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '@/lib/supabase/server';
+import { applyUserSessionCookie, getSessionUserId } from '@/lib/session';
+import { normalizeCityId } from '@/lib/cities-geo';
 
 const bootstrapSchema = z.object({
-  userId: z.string().uuid(),
-  timezone: z.string(),
-  countryCode: z.string().nullable().optional(),
-  cityId: z.string().nullable().optional(),
+  timezone: z.string().min(1).max(100),
+  userId: z.string().uuid().optional(),
+  legacyUserId: z.string().uuid().optional(),
+  countryCode: z.string().max(8).nullable().optional(),
+  cityId: z.string().max(64).nullable().optional(),
   displayName: z.string().max(20).nullable().optional(),
 });
 
-// Generate a unique referral code
 function generateReferralCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed ambiguous chars
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 6; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -20,73 +23,105 @@ function generateReferralCode(): string {
   return code;
 }
 
+async function ensureReferralCode(existingCode: string | null | undefined): Promise<string | null> {
+  if (existingCode) return existingCode;
+
+  for (let attempts = 0; attempts < 5; attempts++) {
+    const newCode = generateReferralCode();
+    const { data: codeExists } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('referral_code', newCode)
+      .maybeSingle();
+
+    if (!codeExists) {
+      return newCode;
+    }
+  }
+
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = bootstrapSchema.parse(body);
 
-    // Try to detect country from request headers (Vercel/Cloudflare provide this)
-    // Only use headers as fallback if countryCode/cityId wasn't explicitly passed
-    const countryCode = data.countryCode !== undefined
-      ? (data.countryCode || null)
-      : (request.headers.get('x-vercel-ip-country') ||
-         request.headers.get('cf-ipcountry') ||
-         null);
+    const sessionUserId = getSessionUserId(request);
+    const migrationId = data.legacyUserId || data.userId;
 
-    // If cityId is explicitly passed (even as null or empty string), use it
-    // Otherwise fall back to headers for auto-detection
-    const cityId = data.cityId !== undefined
-      ? (data.cityId || null)
-      : (request.headers.get('x-vercel-ip-city') ||
-         request.headers.get('cf-ipcity') ||
-         null);
+    let userId = sessionUserId;
 
-    // Check if user exists and needs referral code
-    const { data: existingUser } = await supabaseAdmin
-      .from('users')
-      .select('id, referral_code')
-      .eq('id', data.userId)
-      .single();
+    if (!userId && migrationId) {
+      const { data: existing } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('id', migrationId)
+        .maybeSingle();
 
-    // Generate referral code for new users or existing users without one
-    let referralCode = existingUser?.referral_code;
-    if (!referralCode) {
-      // Generate unique referral code with retry
-      for (let attempts = 0; attempts < 5; attempts++) {
-        const newCode = generateReferralCode();
-        const { data: codeExists } = await supabaseAdmin
-          .from('users')
-          .select('id')
-          .eq('referral_code', newCode)
-          .single();
-
-        if (!codeExists) {
-          referralCode = newCode;
-          break;
-        }
+      if (existing?.id) {
+        userId = existing.id;
       }
     }
 
-    // Build update object
+    if (!userId) {
+      userId = uuidv4();
+    }
+
+    const { data: existingUser } = await supabaseAdmin
+      .from('users')
+      .select('id, referral_code, city_id, country_code')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const referralCode = await ensureReferralCode(existingUser?.referral_code);
+
+    const headerCountry =
+      request.headers.get('x-vercel-ip-country') ||
+      request.headers.get('cf-ipcountry') ||
+      null;
+
+    const explicitCity = data.cityId !== undefined ? normalizeCityId(data.cityId) : undefined;
+    const headerCity = normalizeCityId(
+      request.headers.get('x-vercel-ip-city') || request.headers.get('cf-ipcity')
+    );
+
+    const countryCode =
+      data.countryCode !== undefined
+        ? (data.countryCode || null)
+        : (existingUser?.country_code ?? headerCountry);
+
+    const cityId =
+      explicitCity !== undefined
+        ? explicitCity
+        : (existingUser?.city_id ?? headerCity);
+
     const updateData: Record<string, unknown> = {
-      id: data.userId,
+      id: userId,
       timezone: data.timezone,
-      country_code: countryCode,
-      city_id: cityId,
       updated_at: new Date().toISOString(),
     };
 
-    // Only update referral_code if we generated one
+    if (!existingUser) {
+      updateData.country_code = countryCode;
+      updateData.city_id = cityId;
+    } else {
+      if (data.countryCode !== undefined) {
+        updateData.country_code = data.countryCode || null;
+      }
+      if (data.cityId !== undefined) {
+        updateData.city_id = explicitCity;
+      }
+    }
+
     if (referralCode && !existingUser?.referral_code) {
       updateData.referral_code = referralCode;
     }
 
-    // Only update display_name if provided
     if (data.displayName !== undefined) {
       updateData.display_name = data.displayName || null;
     }
 
-    // Upsert user
     const { data: user, error } = await supabaseAdmin
       .from('users')
       .upsert(updateData, {
@@ -104,7 +139,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(user);
+    const response = NextResponse.json(user);
+    return applyUserSessionCookie(response, user.id);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
